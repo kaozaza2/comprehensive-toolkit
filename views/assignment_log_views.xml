@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <!-- Assignment Log Tree View -->
+        <record id="view_assignment_log_tree" model="ir.ui.view">
+            <field name="name">tk.assignment.log.tree</field>
+            <field name="model">tk.assignment.log</field>
+            <field name="arch" type="xml">
+                <tree string="Assignment Logs" default_order="date desc">
+                    <field name="date"/>
+                    <field name="action" decoration-info="action in ['assign', 'start', 'assign_multiple', 'add_assignee']" decoration-success="action == 'complete'" decoration-warning="action in ['reassign', 'reassign_multiple']" decoration-danger="action in ['unassign', 'cancel', 'unassign_all', 'remove_assignee']"/>
+                    <field name="model_name"/>
+                    <field name="record_reference"/>
+                    <field name="old_assigned_user_id"/>
+                    <field name="new_assigned_user_id"/>
+                    <field name="extra_info"/>
+                    <field name="user_id"/>
+                    <field name="reason"/>
+                    <button name="open_record" type="object" icon="fa-external-link" title="Open Record" attrs="{'invisible': [('model_name', '=', False)]}"/>
+                </tree>
+            </field>
+        </record>
+
+        <!-- Assignment Log Form View -->
+        <record id="view_assignment_log_form" model="ir.ui.view">
+            <field name="name">tk.assignment.log.form</field>
+            <field name="model">tk.assignment.log</field>
+            <field name="arch" type="xml">
+                <form string="Assignment Log" create="false" edit="false">
+                    <sheet>
+                        <div class="oe_title">
+                            <h1><field name="display_name" readonly="1"/></h1>
+                        </div>
+                        <group>
+                            <group string="Record Information">
+                                <field name="model_name"/>
+                                <field name="res_id"/>
+                                <field name="record_reference"/>
+                            </group>
+                            <group string="Change Details">
+                                <field name="action"/>
+                                <field name="date"/>
+                                <field name="user_id"/>
+                            </group>
+                        </group>
+                        <group>
+                            <group string="Assignment Change">
+                                <field name="old_assigned_user_id"/>
+                                <field name="new_assigned_user_id"/>
+                            </group>
+                        </group>
+                        <group string="Multiple Users Information" attrs="{'invisible': [('extra_info', '=', False)]}">
+                            <field name="extra_info" nolabel="1"/>
+                        </group>
+                        <group string="Reason">
+                            <field name="reason" nolabel="1"/>
+                        </group>
+                    </sheet>
+                </form>
+            </field>
+        </record>
+
+        <!-- Assignment Log Search View -->
+        <record id="view_assignment_log_search" model="ir.ui.view">
+            <field name="name">tk.assignment.log.search</field>
+            <field name="model">tk.assignment.log</field>
+            <field name="arch" type="xml">
+                <search string="Search Assignment Logs">
+                    <field name="model_name"/>
+                    <field name="action"/>
+                    <field name="old_assigned_user_id"/>
+                    <field name="new_assigned_user_id"/>
+                    <field name="user_id"/>
+                    <field name="reason"/>
+                    <field name="extra_info"/>
+                    <filter string="Single Assignments" name="single_assignments" domain="[('action', '=', 'assign')]"/>
+                    <filter string="Multiple Assignments" name="multiple_assignments" domain="[('action', '=', 'assign_multiple')]"/>
+                    <filter string="Reassignments" name="reassignments" domain="[('action', 'in', ['reassign', 'reassign_multiple'])]"/>
+                    <filter string="Add/Remove Assignees" name="add_remove" domain="[('action', 'in', ['add_assignee', 'remove_assignee'])]"/>
+                    <filter string="Completions" name="completions" domain="[('action', '=', 'complete')]"/>
+                    <filter string="Cancellations" name="cancellations" domain="[('action', '=', 'cancel')]"/>
+                    <separator/>
+                    <filter string="Today" name="today" domain="[('date', '&gt;=', datetime.datetime.combine(context_today(), datetime.time(0,0,0))), ('date', '&lt;=', datetime.datetime.combine(context_today(), datetime.time(23,59,59)))]"/>
+                    <filter string="This Week" name="this_week" domain="[('date', '&gt;=', (context_today() - datetime.timedelta(days=context_today().weekday())).strftime('%Y-%m-%d')), ('date', '&lt;=', (context_today() + datetime.timedelta(days=6-context_today().weekday())).strftime('%Y-%m-%d'))]"/>
+                    <group expand="0" string="Group By">
+                        <filter string="Action" name="group_action" context="{'group_by': 'action'}"/>
+                        <filter string="Model" name="group_model" context="{'group_by': 'model_name'}"/>
+                        <filter string="Changed By" name="group_user" context="{'group_by': 'user_id'}"/>
+                        <filter string="Date" name="group_date" context="{'group_by': 'date:day'}"/>
+                    </group>
+                </search>
+            </field>
+        </record>
+
+        <!-- Assignment Log Action -->
+        <record id="action_assignment_log" model="ir.actions.act_window">
+            <field name="name">Assignment Logs</field>
+            <field name="res_model">tk.assignment.log</field>
+            <field name="view_mode">tree,form</field>
+            <field name="search_view_id" ref="view_assignment_log_search"/>
+        </record>
+    </data>
+</odoo>

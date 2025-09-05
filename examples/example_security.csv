@@ -1,0 +1,6 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_tk_project_task,tk.project.task,model_tk_project_task,base.group_user,1,1,1,1
+access_tk_project,tk.project,model_tk_project,base.group_user,1,1,1,1
+access_tk_project_milestone,tk.project.milestone,model_tk_project_milestone,base.group_user,1,1,1,1
+access_tk_document,tk.document,model_tk_document,base.group_user,1,1,1,0
+access_tk_document_manager,tk.document manager,model_tk_document,base.group_system,1,1,1,1

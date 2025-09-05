@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <!-- Ownership Log Tree View -->
+        <record id="view_ownership_log_tree" model="ir.ui.view">
+            <field name="name">tk.ownership.log.tree</field>
+            <field name="model">tk.ownership.log</field>
+            <field name="arch" type="xml">
+                <tree string="Ownership Logs" default_order="date desc">
+                    <field name="date"/>
+                    <field name="action" decoration-info="action == 'claim'" decoration-warning="action == 'transfer'" decoration-danger="action == 'release'"/>
+                    <field name="model_name"/>
+                    <field name="record_reference"/>
+                    <field name="old_owner_id"/>
+                    <field name="new_owner_id"/>
+                    <field name="user_id"/>
+                    <field name="reason"/>
+                    <button name="open_record" type="object" icon="fa-external-link" title="Open Record" attrs="{'invisible': [('model_name', '=', False)]}"/>
+                </tree>
+            </field>
+        </record>
+
+        <!-- Ownership Log Form View -->
+        <record id="view_ownership_log_form" model="ir.ui.view">
+            <field name="name">tk.ownership.log.form</field>
+            <field name="model">tk.ownership.log</field>
+            <field name="arch" type="xml">
+                <form string="Ownership Log" create="false" edit="false">
+                    <sheet>
+                        <div class="oe_title">
+                            <h1><field name="display_name" readonly="1"/></h1>
+                        </div>
+                        <group>
+                            <group string="Record Information">
+                                <field name="model_name"/>
+                                <field name="res_id"/>
+                                <field name="record_reference"/>
+                            </group>
+                            <group string="Change Details">
+                                <field name="action"/>
+                                <field name="date"/>
+                                <field name="user_id"/>
+                            </group>
+                        </group>
+                        <group>
+                            <group string="Ownership Change">
+                                <field name="old_owner_id"/>
+                                <field name="new_owner_id"/>
+                            </group>
+                        </group>
+                        <group string="Reason">
+                            <field name="reason" nolabel="1"/>
+                        </group>
+                    </sheet>
+                </form>
+            </field>
+        </record>
+
+        <!-- Ownership Log Search View -->
+        <record id="view_ownership_log_search" model="ir.ui.view">
+            <field name="name">tk.ownership.log.search</field>
+            <field name="model">tk.ownership.log</field>
+            <field name="arch" type="xml">
+                <search string="Search Ownership Logs">
+                    <field name="model_name"/>
+                    <field name="action"/>
+                    <field name="old_owner_id"/>
+                    <field name="new_owner_id"/>
+                    <field name="user_id"/>
+                    <field name="reason"/>
+                    <filter string="Transfers" name="transfers" domain="[('action', '=', 'transfer')]"/>
+                    <filter string="Releases" name="releases" domain="[('action', '=', 'release')]"/>
+                    <filter string="Claims" name="claims" domain="[('action', '=', 'claim')]"/>
+                    <separator/>
+                    <filter string="Today" name="today" domain="[('date', '&gt;=', datetime.datetime.combine(context_today(), datetime.time(0,0,0))), ('date', '&lt;=', datetime.datetime.combine(context_today(), datetime.time(23,59,59)))]"/>
+                    <filter string="This Week" name="this_week" domain="[('date', '&gt;=', (context_today() - datetime.timedelta(days=context_today().weekday())).strftime('%Y-%m-%d')), ('date', '&lt;=', (context_today() + datetime.timedelta(days=6-context_today().weekday())).strftime('%Y-%m-%d'))]"/>
+                    <filter string="This Month" name="this_month" domain="[('date', '&gt;=', datetime.datetime.combine(context_today().replace(day=1), datetime.time(0,0,0))), ('date', '&lt;=', (context_today().replace(day=1) + datetime.timedelta(days=31)).replace(day=1) - datetime.timedelta(days=1))]"/>
+                    <group expand="0" string="Group By">
+                        <filter string="Action" name="group_action" context="{'group_by': 'action'}"/>
+                        <filter string="Model" name="group_model" context="{'group_by': 'model_name'}"/>
+                        <filter string="Changed By" name="group_user" context="{'group_by': 'user_id'}"/>
+                        <filter string="Date" name="group_date" context="{'group_by': 'date:day'}"/>
+                    </group>
+                </search>
+            </field>
+        </record>
+
+        <!-- Ownership Log Action -->
+        <record id="action_ownership_log" model="ir.actions.act_window">
+            <field name="name">Ownership Logs</field>
+            <field name="res_model">tk.ownership.log</field>
+            <field name="view_mode">tree,form</field>
+            <field name="search_view_id" ref="view_ownership_log_search"/>
+        </record>
+    </data>
+</odoo>

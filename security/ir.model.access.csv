@@ -1,0 +1,24 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_tk_ownable_mixin,tk.ownable.mixin,model_tk_ownable_mixin,base.group_user,1,1,1,1
+access_tk_assignable_mixin,tk.assignable.mixin,model_tk_assignable_mixin,base.group_user,1,1,1,1
+access_tk_accessible_mixin,tk.accessible.mixin,model_tk_accessible_mixin,base.group_user,1,1,1,1
+access_tk_accessible_group_mixin,tk.accessible.group.mixin,model_tk_accessible_group_mixin,base.group_user,1,1,1,1
+access_tk_responsible_mixin,tk.responsible.mixin,model_tk_responsible_mixin,base.group_user,1,1,1,1
+access_tk_accessible_group,tk.accessible.group,model_tk_accessible_group,base.group_user,1,1,1,0
+access_tk_accessible_group_manager,tk.accessible.group manager,model_tk_accessible_group,base.group_system,1,1,1,1
+access_tk_accessible_group_wizard,tk.accessible.group.wizard,model_tk_accessible_group_wizard,base.group_user,1,1,1,1
+access_tk_ownership_log,tk.ownership.log,model_tk_ownership_log,base.group_user,1,1,1,0
+access_tk_assignment_log,tk.assignment.log,model_tk_assignment_log,base.group_user,1,1,1,0
+access_tk_access_log,tk.access.log,model_tk_access_log,base.group_user,1,1,1,0
+access_tk_responsibility_log,tk.responsibility.log,model_tk_responsibility_log,base.group_user,1,1,1,0
+access_tk_comprehensive_dashboard,tk.comprehensive.dashboard,model_tk_comprehensive_dashboard,base.group_user,1,1,1,1
+access_tk_ownership_log_manager,tk.ownership.log manager,model_tk_ownership_log,base.group_system,1,1,1,1
+access_tk_assignment_log_manager,tk.assignment.log manager,model_tk_assignment_log,base.group_system,1,1,1,1
+access_tk_access_log_manager,tk.access.log manager,model_tk_access_log,base.group_system,1,1,1,1
+access_tk_responsibility_log_manager,tk.responsibility.log manager,model_tk_responsibility_log,base.group_system,1,1,1,1
+access_tk_bulk_assign_wizard,tk.bulk.assign.wizard,model_tk_bulk_assign_wizard,base.group_user,1,1,1,1
+access_tk_bulk_ownership_wizard,tk.bulk.ownership.wizard,model_tk_bulk_ownership_wizard,base.group_user,1,1,1,1
+access_tk_bulk_access_wizard,tk.bulk.access.wizard,model_tk_bulk_access_wizard,base.group_user,1,1,1,1
+access_tk_transfer_ownership_wizard,tk.transfer.ownership.wizard,model_tk_transfer_ownership_wizard,base.group_user,1,1,1,1
+access_tk_delegate_responsibility_wizard,tk.delegate.responsibility.wizard,model_tk_delegate_responsibility_wizard,base.group_user,1,1,1,1
+access_tk_manage_access_wizard,tk.manage.access.wizard,model_tk_manage_access_wizard,base.group_user,1,1,1,1

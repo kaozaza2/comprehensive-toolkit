@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <!-- Main Menu -->
+        <menuitem id="menu_comprehensive_toolkit_root"
+                  name="Comprehensive Toolkit"
+                  web_icon="comprehensive_toolkit,static/description/icon.png"
+                  sequence="100"/>
+
+        <!-- Dashboard Menu -->
+        <menuitem id="menu_comprehensive_dashboard"
+                  name="Dashboard"
+                  parent="menu_comprehensive_toolkit_root"
+                  action="action_comprehensive_dashboard"
+                  sequence="10"/>
+
+        <!-- Access Management -->
+        <menuitem id="menu_access_management"
+                  name="Access Management"
+                  parent="menu_comprehensive_toolkit_root"
+                  sequence="25"/>
+
+        <menuitem id="menu_accessible_groups"
+                  name="Access Groups"
+                  parent="menu_access_management"
+                  action="action_accessible_group"
+                  sequence="10"/>
+
+        <menuitem id="menu_create_access_group"
+                  name="Create Access Group"
+                  parent="menu_access_management"
+                  action="action_accessible_group_wizard"
+                  sequence="20"/>
+
+        <!-- Logs Menu -->
+        <menuitem id="menu_comprehensive_logs"
+                  name="Activity Logs"
+                  parent="menu_comprehensive_toolkit_root"
+                  sequence="30"/>
+
+        <!-- Ownership Logs -->
+        <menuitem id="menu_ownership_logs"
+                  name="Ownership Logs"
+                  parent="menu_comprehensive_logs"
+                  action="action_ownership_log"
+                  sequence="10"/>
+
+        <!-- Assignment Logs -->
+        <menuitem id="menu_assignment_logs"
+                  name="Assignment Logs"
+                  parent="menu_comprehensive_logs"
+                  action="action_assignment_log"
+                  sequence="20"/>
+
+        <!-- Access Logs -->
+        <menuitem id="menu_access_logs"
+                  name="Access Logs"
+                  parent="menu_comprehensive_logs"
+                  action="action_access_log"
+                  sequence="30"/>
+
+        <!-- Responsibility Logs -->
+        <menuitem id="menu_responsibility_logs"
+                  name="Responsibility Logs"
+                  parent="menu_comprehensive_logs"
+                  action="action_responsibility_log"
+                  sequence="40"/>
+
+        <!-- Quick Actions Menu -->
+        <menuitem id="menu_quick_actions"
+                  name="Quick Actions"
+                  parent="menu_comprehensive_toolkit_root"
+                  sequence="35"/>
+
+        <menuitem id="menu_bulk_assign"
+                  name="Bulk Assignment"
+                  parent="menu_quick_actions"
+                  action="action_bulk_assign_wizard"
+                  sequence="10"/>
+
+        <menuitem id="menu_bulk_ownership_transfer"
+                  name="Bulk Ownership Transfer"
+                  parent="menu_quick_actions"
+                  action="action_bulk_ownership_wizard"
+                  sequence="20"/>
+
+        <menuitem id="menu_bulk_access_control"
+                  name="Bulk Access Control"
+                  parent="menu_quick_actions"
+                  action="action_bulk_access_wizard"
+                  sequence="30"/>
+
+        <!-- Configuration Menu -->
+        <menuitem id="menu_comprehensive_config"
+                  name="Configuration"
+                  parent="menu_comprehensive_toolkit_root"
+                  sequence="90"/>
+
+    </data>
+</odoo>

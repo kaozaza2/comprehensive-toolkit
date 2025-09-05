@@ -1,0 +1,258 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Bulk Assignment Wizard -->
+    <record id="view_bulk_assign_wizard_form" model="ir.ui.view">
+        <field name="name">tk.bulk.assign.wizard.form</field>
+        <field name="model">tk.bulk.assign.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Bulk Assignment">
+                <group>
+                    <field name="model_name" invisible="True"/>
+                    <field name="record_ids" invisible="True"/>
+                    <field name="user_ids" widget="many2many_tags" required="1"/>
+                    <field name="assignment_deadline"/>
+                    <field name="assignment_priority"/>
+                </group>
+                <field name="assignment_description" placeholder="Assignment instructions..."/>
+                <field name="reason" placeholder="Reason for bulk assignment..."/>
+                <footer>
+                    <button name="action_assign" string="Assign" type="object" class="btn-primary"/>
+                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_bulk_assign_wizard" model="ir.actions.act_window">
+        <field name="name">Bulk Assignment</field>
+        <field name="res_model">tk.bulk.assign.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
+    <!-- Bulk Ownership Transfer Wizard -->
+    <record id="view_bulk_ownership_wizard_form" model="ir.ui.view">
+        <field name="name">tk.bulk.ownership.wizard.form</field>
+        <field name="model">tk.bulk.ownership.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Bulk Ownership Transfer">
+                <group>
+                    <field name="model_name" invisible="True"/>
+                    <field name="record_ids" invisible="True"/>
+                    <field name="new_owner_id" required="1"/>
+                </group>
+                <field name="reason" placeholder="Reason for ownership transfer..."/>
+                <footer>
+                    <button name="action_transfer" string="Transfer" type="object" class="btn-primary"/>
+                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_bulk_ownership_wizard" model="ir.actions.act_window">
+        <field name="name">Bulk Ownership Transfer</field>
+        <field name="res_model">tk.bulk.ownership.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
+    <!-- Bulk Access Control Wizard -->
+    <record id="view_bulk_access_wizard_form" model="ir.ui.view">
+        <field name="name">tk.bulk.access.wizard.form</field>
+        <field name="model">tk.bulk.access.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Bulk Access Control">
+                <group>
+                    <field name="model_name" invisible="True"/>
+                    <field name="record_ids" invisible="True"/>
+                    <field name="access_level" required="1"/>
+                </group>
+                <group string="Access Permissions" invisible="access_level in ['public', 'internal']">
+                    <field name="allowed_user_ids" widget="many2many_tags"/>
+                    <field name="allowed_group_ids" widget="many2many_tags"/>
+                </group>
+                <field name="reason" placeholder="Reason for access change..."/>
+                <footer>
+                    <button name="action_set_access" string="Update Access" type="object" class="btn-primary"/>
+                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_bulk_access_wizard" model="ir.actions.act_window">
+        <field name="name">Bulk Access Control</field>
+        <field name="res_model">tk.bulk.access.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
+    <!-- Transfer Ownership Wizard -->
+    <record id="view_transfer_ownership_wizard_form" model="ir.ui.view">
+        <field name="name">tk.transfer.ownership.wizard.form</field>
+        <field name="model">tk.transfer.ownership.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Transfer Ownership">
+                <group>
+                    <field name="model_name" invisible="True"/>
+                    <field name="record_id" invisible="True"/>
+                    <field name="current_owner_id" readonly="1"/>
+                    <field name="new_owner_id" required="1"/>
+                </group>
+                <field name="reason" placeholder="Reason for ownership transfer..."/>
+                <footer>
+                    <button name="action_transfer" string="Transfer" type="object" class="btn-primary"/>
+                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_transfer_ownership_wizard" model="ir.actions.act_window">
+        <field name="name">Transfer Ownership</field>
+        <field name="res_model">tk.transfer.ownership.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
+    <!-- Delegate Responsibility Wizard -->
+    <record id="view_delegate_responsibility_wizard_form" model="ir.ui.view">
+        <field name="name">tk.delegate.responsibility.wizard.form</field>
+        <field name="model">tk.delegate.responsibility.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Delegate Responsibility">
+                <group>
+                    <field name="model_name" invisible="True"/>
+                    <field name="record_id" invisible="True"/>
+                    <field name="user_ids" widget="many2many_tags" required="1"/>
+                    <field name="responsibility_type"/>
+                    <field name="end_date"/>
+                </group>
+                <field name="description" placeholder="Responsibility description..."/>
+                <field name="reason" placeholder="Reason for delegation..."/>
+                <footer>
+                    <button name="action_delegate" string="Delegate" type="object" class="btn-primary"/>
+                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_delegate_responsibility_wizard" model="ir.actions.act_window">
+        <field name="name">Delegate Responsibility</field>
+        <field name="res_model">tk.delegate.responsibility.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
+    <!-- Manage Access Wizard -->
+    <record id="view_manage_access_wizard_form" model="ir.ui.view">
+        <field name="name">tk.manage.access.wizard.form</field>
+        <field name="model">tk.manage.access.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Manage Access">
+                <group>
+                    <field name="model_name" invisible="True"/>
+                    <field name="record_id" invisible="True"/>
+                    <field name="access_level" required="1"/>
+                </group>
+                <group string="Access Permissions" invisible="access_level in ['public', 'internal']">
+                    <field name="allowed_user_ids" widget="many2many_tags"/>
+                    <field name="allowed_group_ids" widget="many2many_tags"/>
+                    <field name="custom_access_group_ids" widget="many2many_tags"/>
+                </group>
+                <group string="Access Duration">
+                    <field name="access_start_date"/>
+                    <field name="access_end_date"/>
+                </group>
+                <field name="reason" placeholder="Reason for access change..."/>
+                <footer>
+                    <button name="action_update_access" string="Update Access" type="object" class="btn-primary"/>
+                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_manage_access_wizard" model="ir.actions.act_window">
+        <field name="name">Manage Access</field>
+        <field name="res_model">tk.manage.access.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
+    <!-- Accessible Group Wizard View -->
+    <record id="view_accessible_group_wizard_form" model="ir.ui.view">
+        <field name="name">tk.accessible.group.wizard.form</field>
+        <field name="model">tk.accessible.group.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Create Access Group">
+                <group>
+                    <group>
+                        <field name="name" required="1"/>
+                        <field name="group_type"/>
+                        <field name="access_level"/>
+                    </group>
+                    <group>
+                        <field name="use_template"/>
+                        <field name="template_type" invisible="not use_template"/>
+                        <field name="auto_add_creator_as_manager"/>
+                    </group>
+                </group>
+
+                <group string="Copy from Existing">
+                    <field name="copy_from_existing"/>
+                    <field name="existing_group_id" invisible="not copy_from_existing"/>
+                </group>
+
+                <group string="Temporary Group" invisible="group_type != 'temporary'">
+                    <field name="is_temporary"/>
+                    <field name="expiry_date" invisible="not is_temporary"/>
+                </group>
+
+                <group string="Project/Department Details" invisible="group_type not in ['project', 'department']">
+                    <field name="project_name" invisible="group_type != 'project'"/>
+                    <field name="department_name" invisible="group_type != 'department'"/>
+                </group>
+
+                <field name="description" placeholder="Group description..."/>
+
+                <notebook>
+                    <page string="Users">
+                        <field name="user_ids" nolabel="1">
+                            <tree>
+                                <field name="name"/>
+                                <field name="login"/>
+                                <field name="email"/>
+                            </tree>
+                        </field>
+                    </page>
+                    <page string="Managers">
+                        <field name="manager_ids" nolabel="1">
+                            <tree>
+                                <field name="name"/>
+                                <field name="login"/>
+                                <field name="email"/>
+                            </tree>
+                        </field>
+                    </page>
+                </notebook>
+
+                <footer>
+                    <button name="action_create_group" string="Create Group" type="object" class="btn-primary"/>
+                    <button name="action_create_and_assign" string="Create and Assign" type="object" class="btn-success"/>
+                    <button name="action_create_and_close" string="Create and Close" type="object" class="btn-secondary"/>
+                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_accessible_group_wizard" model="ir.actions.act_window">
+        <field name="name">Create Access Group</field>
+        <field name="res_model">tk.accessible.group.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+</odoo>

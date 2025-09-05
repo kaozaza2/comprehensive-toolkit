@@ -1,0 +1,354 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <!-- Dashboard Form View -->
+        <record id="view_comprehensive_dashboard_form" model="ir.ui.view">
+            <field name="name">tk.comprehensive.dashboard.form</field>
+            <field name="model">tk.comprehensive.dashboard</field>
+            <field name="arch" type="xml">
+                <form string="Comprehensive Toolkit Dashboard">
+                    <header>
+                        <button name="refresh_dashboard" string="Refresh" type="object" class="btn-primary"/>
+                    </header>
+                    <sheet>
+                        <div class="oe_title">
+                            <h1>Comprehensive Toolkit Dashboard</h1>
+                        </div>
+
+                        <!-- Date Filter Section -->
+                        <group string="Date Filters">
+                            <group>
+                                <field name="date_from"/>
+                                <field name="date_to"/>
+                            </group>
+                        </group>
+
+                        <!-- Statistics Cards -->
+                        <div class="o_kanban_dashboard">
+                            <div class="o_kanban_card_header">
+                                <div class="o_kanban_card_header_title">Activity Summary</div>
+                            </div>
+                            <div class="container o_kanban_card_content">
+                                <div class="row">
+                                    <div class="col-lg-3 col-md-6 col-sm-12">
+                                        <div class="card bg-primary text-white">
+                                            <div class="card-body">
+                                                <div class="d-flex justify-content-between">
+                                                    <div>
+                                                        <h4><field name="total_ownership_changes"/></h4>
+                                                        <span>Ownership Changes</span>
+                                                    </div>
+                                                    <div class="align-self-center">
+                                                        <i class="fa fa-exchange fa-2x"/>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="card-footer">
+                                                <button name="action_view_ownership_logs" type="object" class="btn btn-light btn-sm">View Details</button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-lg-3 col-md-6 col-sm-12">
+                                        <div class="card bg-success text-white">
+                                            <div class="card-body">
+                                                <div class="d-flex justify-content-between">
+                                                    <div>
+                                                        <h4><field name="total_assignment_changes"/></h4>
+                                                        <span>Assignment Changes</span>
+                                                    </div>
+                                                    <div class="align-self-center">
+                                                        <i class="fa fa-tasks fa-2x"/>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="card-footer">
+                                                <button name="action_view_assignment_logs" type="object" class="btn btn-light btn-sm">View Details</button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-lg-3 col-md-6 col-sm-12">
+                                        <div class="card bg-info text-white">
+                                            <div class="card-body">
+                                                <div class="d-flex justify-content-between">
+                                                    <div>
+                                                        <h4><field name="total_access_changes"/></h4>
+                                                        <span>Access Changes</span>
+                                                    </div>
+                                                    <div class="align-self-center">
+                                                        <i class="fa fa-key fa-2x"/>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="card-footer">
+                                                <button name="action_view_access_logs" type="object" class="btn btn-light btn-sm">View Details</button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-lg-3 col-md-6 col-sm-12">
+                                        <div class="card bg-warning text-white">
+                                            <div class="card-body">
+                                                <div class="d-flex justify-content-between">
+                                                    <div>
+                                                        <h4><field name="total_responsibility_changes"/></h4>
+                                                        <span>Responsibility Changes</span>
+                                                    </div>
+                                                    <div class="align-self-center">
+                                                        <i class="fa fa-user-circle fa-2x"/>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="card-footer">
+                                                <button name="action_view_responsibility_logs" type="object" class="btn btn-light btn-sm">View Details</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- User Statistics Section -->
+                        <div class="o_kanban_dashboard">
+                            <div class="o_kanban_card_header">
+                                <div class="o_kanban_card_header_title">My Dashboard</div>
+                            </div>
+                            <div class="container o_kanban_card_content">
+                                <div class="row">
+                                    <div class="col-lg-2 col-md-4 col-sm-6">
+                                        <div class="card bg-dark text-white">
+                                            <div class="card-body text-center">
+                                                <h4><field name="my_owned_records_count"/></h4>
+                                                <span>My Owned Records</span>
+                                            </div>
+                                            <div class="card-footer">
+                                                <button name="action_view_my_owned_records" type="object" class="btn btn-light btn-sm btn-block">View</button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-lg-2 col-md-4 col-sm-6">
+                                        <div class="card bg-secondary text-white">
+                                            <div class="card-body text-center">
+                                                <h4><field name="my_co_owned_records_count"/></h4>
+                                                <span>Co-owned Records</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-lg-2 col-md-4 col-sm-6">
+                                        <div class="card bg-success text-white">
+                                            <div class="card-body text-center">
+                                                <h4><field name="my_assignments_count"/></h4>
+                                                <span>My Assignments</span>
+                                            </div>
+                                            <div class="card-footer">
+                                                <button name="action_view_my_assignments" type="object" class="btn btn-light btn-sm btn-block">View</button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-lg-2 col-md-4 col-sm-6">
+                                        <div class="card bg-danger text-white">
+                                            <div class="card-body text-center">
+                                                <h4><field name="my_overdue_assignments_count"/></h4>
+                                                <span>Overdue</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-lg-2 col-md-4 col-sm-6">
+                                        <div class="card bg-info text-white">
+                                            <div class="card-body text-center">
+                                                <h4><field name="my_responsibilities_count"/></h4>
+                                                <span>My Responsibilities</span>
+                                            </div>
+                                            <div class="card-footer">
+                                                <button name="action_view_my_responsibilities" type="object" class="btn btn-light btn-sm btn-block">View</button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-lg-2 col-md-4 col-sm-6">
+                                        <div class="card bg-warning text-white">
+                                            <div class="card-body text-center">
+                                                <h4><field name="my_secondary_responsibilities_count"/></h4>
+                                                <span>Secondary Resp.</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Current Status Section -->
+                        <div class="o_kanban_dashboard">
+                            <div class="o_kanban_card_header">
+                                <div class="o_kanban_card_header_title">Current Status</div>
+                            </div>
+                            <div class="container o_kanban_card_content">
+                                <div class="row">
+                                    <div class="col-lg-3 col-md-6 col-sm-12">
+                                        <div class="alert alert-warning">
+                                            <h4><field name="unowned_records_count"/></h4>
+                                            <span>Unowned Records</span>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-lg-3 col-md-6 col-sm-12">
+                                        <div class="alert alert-info">
+                                            <h4><field name="unassigned_records_count"/></h4>
+                                            <span>Unassigned Records</span>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-lg-3 col-md-6 col-sm-12">
+                                        <div class="alert alert-danger">
+                                            <h4><field name="overdue_assignments_count"/></h4>
+                                            <span>Overdue Assignments</span>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-lg-3 col-md-6 col-sm-12">
+                                        <div class="alert alert-warning">
+                                            <h4><field name="expired_responsibilities_count"/></h4>
+                                            <span>Expired Responsibilities</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Recent Activity Section -->
+                        <div class="o_kanban_dashboard">
+                            <div class="o_kanban_card_header">
+                                <div class="o_kanban_card_header_title">Recent Activity (Last 7 Days)</div>
+                            </div>
+                            <div class="container o_kanban_card_content">
+                                <div class="row">
+                                    <div class="col-lg-3 col-md-6 col-sm-12">
+                                        <div class="card border-primary">
+                                            <div class="card-body text-center">
+                                                <h4 class="text-primary"><field name="recent_ownership_transfers"/></h4>
+                                                <span>Ownership Transfers</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-lg-3 col-md-6 col-sm-12">
+                                        <div class="card border-success">
+                                            <div class="card-body text-center">
+                                                <h4 class="text-success"><field name="recent_new_assignments"/></h4>
+                                                <span>New Assignments</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-lg-3 col-md-6 col-sm-12">
+                                        <div class="card border-info">
+                                            <div class="card-body text-center">
+                                                <h4 class="text-info"><field name="recent_access_grants"/></h4>
+                                                <span>Access Grants</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-lg-3 col-md-6 col-sm-12">
+                                        <div class="card border-warning">
+                                            <div class="card-body text-center">
+                                                <h4 class="text-warning"><field name="recent_responsibility_changes"/></h4>
+                                                <span>Responsibility Changes</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Top Users Section -->
+                        <group string="Top Users">
+                            <group>
+                                <field name="top_ownership_transferrer"/>
+                                <field name="top_assigner"/>
+                                <field name="most_responsible_user"/>
+                            </group>
+                        </group>
+
+                        <!-- Recent Activity Section -->
+                        <notebook>
+                            <page string="Recent Ownership Changes">
+                                <field name="recent_ownership_logs" nolabel="1">
+                                    <tree>
+                                        <field name="date"/>
+                                        <field name="action"/>
+                                        <field name="model_name"/>
+                                        <field name="record_reference"/>
+                                        <field name="old_owner_id"/>
+                                        <field name="new_owner_id"/>
+                                        <field name="user_id"/>
+                                        <button name="open_record" type="object" icon="fa-external-link" title="Open Record"/>
+                                    </tree>
+                                </field>
+                            </page>
+
+                            <page string="Recent Assignment Changes">
+                                <field name="recent_assignment_logs" nolabel="1">
+                                    <tree>
+                                        <field name="date"/>
+                                        <field name="action"/>
+                                        <field name="model_name"/>
+                                        <field name="record_reference"/>
+                                        <field name="old_assigned_user_id"/>
+                                        <field name="new_assigned_user_id"/>
+                                        <field name="user_id"/>
+                                        <button name="open_record" type="object" icon="fa-external-link" title="Open Record"/>
+                                    </tree>
+                                </field>
+                            </page>
+
+                            <page string="Recent Access Changes">
+                                <field name="recent_access_logs" nolabel="1">
+                                    <tree>
+                                        <field name="date"/>
+                                        <field name="action"/>
+                                        <field name="model_name"/>
+                                        <field name="record_reference"/>
+                                        <field name="target_user_id"/>
+                                        <field name="target_group_id"/>
+                                        <field name="user_id"/>
+                                        <button name="open_record" type="object" icon="fa-external-link" title="Open Record"/>
+                                    </tree>
+                                </field>
+                            </page>
+
+                            <page string="Recent Responsibility Changes">
+                                <field name="recent_responsibility_logs" nolabel="1">
+                                    <tree>
+                                        <field name="date"/>
+                                        <field name="action"/>
+                                        <field name="model_name"/>
+                                        <field name="record_reference"/>
+                                        <field name="old_responsible_user_id"/>
+                                        <field name="new_responsible_user_id"/>
+                                        <field name="user_id"/>
+                                        <button name="open_record" type="object" icon="fa-external-link" title="Open Record"/>
+                                    </tree>
+                                </field>
+                            </page>
+                        </notebook>
+                    </sheet>
+                </form>
+            </field>
+        </record>
+
+        <!-- Dashboard Action -->
+        <record id="action_comprehensive_dashboard" model="ir.actions.act_window">
+            <field name="name">Comprehensive Toolkit Dashboard</field>
+            <field name="res_model">tk.comprehensive.dashboard</field>
+            <field name="view_mode">form</field>
+            <field name="target">current</field>
+            <field name="context">{'form_view_initial_mode': 'readonly'}</field>
+        </record>
+    </data>
+</odoo>

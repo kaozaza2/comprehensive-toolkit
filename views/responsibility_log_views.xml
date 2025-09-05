@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <!-- Responsibility Log Tree View -->
+        <record id="view_responsibility_log_tree" model="ir.ui.view">
+            <field name="name">tk.responsibility.log.tree</field>
+            <field name="model">tk.responsibility.log</field>
+            <field name="arch" type="xml">
+                <tree string="Responsibility Logs" default_order="date desc">
+                    <field name="date"/>
+                    <field name="action" decoration-info="action in ['assign', 'delegate', 'assign_multiple', 'delegate_multiple', 'add_responsible']" decoration-warning="action in ['transfer', 'escalate', 'transfer_multiple']" decoration-danger="action in ['revoke', 'revoke_all', 'remove_responsible']"/>
+                    <field name="model_name"/>
+                    <field name="record_reference"/>
+                    <field name="old_responsible_user_id"/>
+                    <field name="new_responsible_user_id"/>
+                    <field name="extra_info"/>
+                    <field name="user_id"/>
+                    <field name="reason"/>
+                    <button name="open_record" type="object" icon="fa-external-link" title="Open Record" attrs="{'invisible': [('model_name', '=', False)]}"/>
+                </tree>
+            </field>
+        </record>
+
+        <!-- Responsibility Log Form View -->
+        <record id="view_responsibility_log_form" model="ir.ui.view">
+            <field name="name">tk.responsibility.log.form</field>
+            <field name="model">tk.responsibility.log</field>
+            <field name="arch" type="xml">
+                <form string="Responsibility Log" create="false" edit="false">
+                    <sheet>
+                        <div class="oe_title">
+                            <h1><field name="display_name" readonly="1"/></h1>
+                        </div>
+                        <group>
+                            <group string="Record Information">
+                                <field name="model_name"/>
+                                <field name="res_id"/>
+                                <field name="record_reference"/>
+                            </group>
+                            <group string="Change Details">
+                                <field name="action"/>
+                                <field name="date"/>
+                                <field name="user_id"/>
+                            </group>
+                        </group>
+                        <group>
+                            <group string="Responsibility Change">
+                                <field name="old_responsible_user_id"/>
+                                <field name="new_responsible_user_id"/>
+                            </group>
+                        </group>
+                        <group string="Multiple Users Information" attrs="{'invisible': [('extra_info', '=', False)]}">
+                            <field name="extra_info" nolabel="1"/>
+                        </group>
+                        <group string="Reason">
+                            <field name="reason" nolabel="1"/>
+                        </group>
+                    </sheet>
+                </form>
+            </field>
+        </record>
+
+        <!-- Responsibility Log Search View -->
+        <record id="view_responsibility_log_search" model="ir.ui.view">
+            <field name="name">tk.responsibility.log.search</field>
+            <field name="model">tk.responsibility.log</field>
+            <field name="arch" type="xml">
+                <search string="Search Responsibility Logs">
+                    <field name="model_name"/>
+                    <field name="action"/>
+                    <field name="old_responsible_user_id"/>
+                    <field name="new_responsible_user_id"/>
+                    <field name="user_id"/>
+                    <field name="reason"/>
+                    <field name="extra_info"/>
+                    <filter string="Single Assignments" name="single_assignments" domain="[('action', '=', 'assign')]"/>
+                    <filter string="Multiple Assignments" name="multiple_assignments" domain="[('action', '=', 'assign_multiple')]"/>
+                    <filter string="Delegations" name="delegations" domain="[('action', 'in', ['delegate', 'delegate_multiple'])]"/>
+                    <filter string="Transfers" name="transfers" domain="[('action', 'in', ['transfer', 'transfer_multiple'])]"/>
+                    <filter string="Add/Remove Responsible" name="add_remove" domain="[('action', 'in', ['add_responsible', 'remove_responsible'])]"/>
+                    <filter string="Escalations" name="escalations" domain="[('action', '=', 'escalate')]"/>
+                    <filter string="Revocations" name="revocations" domain="[('action', 'in', ['revoke', 'revoke_all'])]"/>
+                    <separator/>
+                    <filter string="Today" name="today" domain="[('date', '&gt;=', datetime.datetime.combine(context_today(), datetime.time(0,0,0))), ('date', '&lt;=', datetime.datetime.combine(context_today(), datetime.time(23,59,59)))]"/>
+                    <group expand="0" string="Group By">
+                        <filter string="Action" name="group_action" context="{'group_by': 'action'}"/>
+                        <filter string="Model" name="group_model" context="{'group_by': 'model_name'}"/>
+                        <filter string="Changed By" name="group_user" context="{'group_by': 'user_id'}"/>
+                        <filter string="Date" name="group_date" context="{'group_by': 'date:day'}"/>
+                    </group>
+                </search>
+            </field>
+        </record>
+
+        <!-- Responsibility Log Action -->
+        <record id="action_responsibility_log" model="ir.actions.act_window">
+            <field name="name">Responsibility Logs</field>
+            <field name="res_model">tk.responsibility.log</field>
+            <field name="view_mode">tree,form</field>
+            <field name="search_view_id" ref="view_responsibility_log_search"/>
+        </record>
+    </data>
+</odoo>

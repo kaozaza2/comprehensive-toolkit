@@ -1,0 +1,267 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <!-- Add Access Group Wizard Form View -->
+        <record id="view_accessible_group_wizard_form" model="ir.ui.view">
+            <field name="name">tk.accessible.group.wizard.form</field>
+            <field name="model">tk.accessible.group.wizard</field>
+            <field name="arch" type="xml">
+                <form string="Add Access Group">
+                    <sheet>
+                        <div class="oe_title">
+                            <h1>Create New Access Group</h1>
+                        </div>
+
+                        <!-- Basic Information -->
+                        <group string="Basic Information">
+                            <group>
+                                <field name="name" placeholder="Enter group name..."/>
+                                <field name="group_type" widget="radio"/>
+                                <field name="access_level"/>
+                            </group>
+                            <group>
+                                <field name="description" placeholder="Describe the purpose of this group..."/>
+                                <field name="auto_add_creator_as_manager"/>
+                            </group>
+                        </group>
+
+                        <!-- Template Options -->
+                        <group string="Quick Setup" attrs="{'invisible': [('group_type', 'in', ['project', 'department'])]}">
+                            <group>
+                                <field name="use_template"/>
+                                <field name="template_type" attrs="{'invisible': [('use_template', '=', False)], 'required': [('use_template', '=', True)]}"/>
+                            </group>
+                            <group>
+                                <field name="copy_from_existing"/>
+                                <field name="existing_group_id" attrs="{'invisible': [('copy_from_existing', '=', False)], 'required': [('copy_from_existing', '=', True)]}" domain="[('active', '=', True)]"/>
+                            </group>
+                        </group>
+
+                        <!-- Project/Department Specific -->
+                        <group string="Project Details" attrs="{'invisible': [('group_type', '!=', 'project')]}">
+                            <field name="project_name" attrs="{'required': [('group_type', '=', 'project')]}"/>
+                        </group>
+
+                        <group string="Department Details" attrs="{'invisible': [('group_type', '!=', 'department')]}">
+                            <field name="department_name" attrs="{'required': [('group_type', '=', 'department')]}"/>
+                        </group>
+
+                        <!-- Temporary Group Options -->
+                        <group string="Temporary Group Settings" attrs="{'invisible': [('group_type', '!=', 'temporary')]}">
+                            <group>
+                                <field name="is_temporary"/>
+                                <field name="expiry_date" attrs="{'invisible': [('is_temporary', '=', False)], 'required': [('is_temporary', '=', True)]}"/>
+                            </group>
+                        </group>
+
+                        <!-- User Selection -->
+                        <group string="Users and Managers">
+                            <group colspan="2">
+                                <field name="user_ids" widget="many2many_tags" placeholder="Select users to add to this group...">
+                                    <tree>
+                                        <field name="name"/>
+                                        <field name="login"/>
+                                        <field name="email"/>
+                                    </tree>
+                                </field>
+                            </group>
+                            <group colspan="2">
+                                <field name="manager_ids" widget="many2many_tags" placeholder="Select group managers (optional)...">
+                                    <tree>
+                                        <field name="name"/>
+                                        <field name="login"/>
+                                        <field name="email"/>
+                                    </tree>
+                                </field>
+                            </group>
+                        </group>
+
+                        <!-- Help Text -->
+                        <div class="alert alert-info" role="alert">
+                            <strong>Tips:</strong>
+                            <ul>
+                                <li><strong>Group Managers:</strong> Can add/remove users and manage the group</li>
+                                <li><strong>Access Level:</strong> Controls who can see and use this group</li>
+                                <li><strong>Templates:</strong> Use pre-configured settings for common group types</li>
+                                <li><strong>Temporary Groups:</strong> Will be automatically archived after expiry date</li>
+                            </ul>
+                        </div>
+                    </sheet>
+
+                    <footer>
+                        <button name="action_create_group" string="Create Group" type="object" class="btn-primary"/>
+                        <button name="action_create_and_new" string="Create &amp; New" type="object" class="btn-secondary"/>
+                        <button name="action_create_and_close" string="Create &amp; Close" type="object" class="btn-secondary"/>
+                        <button string="Cancel" class="btn-secondary" special="cancel"/>
+                    </footer>
+                </form>
+            </field>
+        </record>
+
+        <!-- Add Access Group Wizard Action -->
+        <record id="action_accessible_group_wizard" model="ir.actions.act_window">
+            <field name="name">Add Access Group</field>
+            <field name="res_model">tk.accessible.group.wizard</field>
+            <field name="view_mode">form</field>
+            <field name="target">new</field>
+            <field name="context">{}</field>
+        </record>
+
+        <!-- Quick Access Group Creation Actions -->
+        <record id="action_create_project_group" model="ir.actions.act_window">
+            <field name="name">Create Project Group</field>
+            <field name="res_model">tk.accessible.group.wizard</field>
+            <field name="view_mode">form</field>
+            <field name="target">new</field>
+            <field name="context">{'default_group_type': 'project', 'default_use_template': True, 'default_template_type': 'project_team'}</field>
+        </record>
+
+        <record id="action_create_department_group" model="ir.actions.act_window">
+            <field name="name">Create Department Group</field>
+            <field name="res_model">tk.accessible.group.wizard</field>
+            <field name="view_mode">form</field>
+            <field name="target">new</field>
+            <field name="context">{'default_group_type': 'department', 'default_use_template': True, 'default_template_type': 'department_team'}</field>
+        </record>
+
+        <record id="action_create_temporary_group" model="ir.actions.act_window">
+            <field name="name">Create Temporary Group</field>
+            <field name="res_model">tk.accessible.group.wizard</field>
+            <field name="view_mode">form</field>
+            <field name="target">new</field>
+            <field name="context">{'default_group_type': 'temporary', 'default_use_template': True, 'default_template_type': 'temporary_access', 'default_is_temporary': True}</field>
+        </record>
+
+        <!-- Access Group Management Views -->
+        <record id="view_accessible_group_tree" model="ir.ui.view">
+            <field name="name">tk.accessible.group.tree</field>
+            <field name="model">tk.accessible.group</field>
+            <field name="arch" type="xml">
+                <tree string="Access Groups" decoration-muted="not active">
+                    <field name="name"/>
+                    <field name="group_type"/>
+                    <field name="user_count"/>
+                    <field name="access_level"/>
+                    <field name="created_by"/>
+                    <field name="created_date"/>
+                    <field name="active"/>
+                </tree>
+            </field>
+        </record>
+
+        <record id="view_accessible_group_form" model="ir.ui.view">
+            <field name="name">tk.accessible.group.form</field>
+            <field name="model">tk.accessible.group</field>
+            <field name="arch" type="xml">
+                <form string="Access Group">
+                    <header>
+                        <button name="add_user" string="Add User" type="object" class="btn-primary" attrs="{'invisible': [('is_manager', '=', False)]}"/>
+                        <button name="add_multiple_users" string="Add Multiple Users" type="object" class="btn-secondary" attrs="{'invisible': [('is_manager', '=', False)]}"/>
+                        <button name="duplicate_group" string="Duplicate Group" type="object" class="btn-secondary" attrs="{'invisible': [('is_manager', '=', False)]}"/>
+                        <button name="archive_group" string="Archive" type="object" class="btn-secondary" attrs="{'invisible': ['|', ('active', '=', False), ('is_manager', '=', False)]}"/>
+                        <field name="active" widget="boolean_button" options="{'terminology': 'archive'}"/>
+                    </header>
+                    <sheet>
+                        <div class="oe_title">
+                            <h1>
+                                <field name="name" placeholder="Group Name"/>
+                            </h1>
+                            <h3>
+                                <field name="group_type" widget="badge"/>
+                                <field name="access_level" widget="badge"/>
+                            </h3>
+                        </div>
+
+                        <group>
+                            <group>
+                                <field name="description"/>
+                                <field name="user_count"/>
+                                <field name="is_manager"/>
+                            </group>
+                            <group>
+                                <field name="created_by"/>
+                                <field name="created_date"/>
+                            </group>
+                        </group>
+
+                        <notebook>
+                            <page string="Users" name="users">
+                                <field name="user_ids">
+                                    <tree editable="bottom" delete="true" create="false">
+                                        <field name="name"/>
+                                        <field name="login"/>
+                                        <field name="email"/>
+                                        <field name="active"/>
+                                    </tree>
+                                </field>
+                            </page>
+                            <page string="Managers" name="managers">
+                                <field name="manager_ids">
+                                    <tree editable="bottom" delete="true" create="false">
+                                        <field name="name"/>
+                                        <field name="login"/>
+                                        <field name="email"/>
+                                        <field name="active"/>
+                                    </tree>
+                                </field>
+                            </page>
+                        </notebook>
+                    </sheet>
+                    <div class="oe_chatter">
+                        <field name="message_follower_ids"/>
+                        <field name="message_ids"/>
+                    </div>
+                </form>
+            </field>
+        </record>
+
+        <record id="view_accessible_group_search" model="ir.ui.view">
+            <field name="name">tk.accessible.group.search</field>
+            <field name="model">tk.accessible.group</field>
+            <field name="arch" type="xml">
+                <search string="Search Access Groups">
+                    <field name="name" string="Group Name"/>
+                    <field name="description"/>
+                    <field name="created_by"/>
+                    <field name="user_ids" string="Users"/>
+
+                    <filter string="My Groups" name="my_groups" domain="[('created_by', '=', uid)]"/>
+                    <filter string="I Manage" name="i_manage" domain="['|', ('created_by', '=', uid), ('manager_ids', 'in', [uid])]"/>
+                    <filter string="I'm Member" name="im_member" domain="[('user_ids', 'in', [uid])]"/>
+                    <separator/>
+                    <filter string="Active" name="active" domain="[('active', '=', True)]"/>
+                    <filter string="Archived" name="archived" domain="[('active', '=', False)]"/>
+                    <separator/>
+                    <filter string="Project Groups" name="project_groups" domain="[('group_type', '=', 'project')]"/>
+                    <filter string="Department Groups" name="department_groups" domain="[('group_type', '=', 'department')]"/>
+                    <filter string="Temporary Groups" name="temporary_groups" domain="[('group_type', '=', 'temporary')]"/>
+                    <filter string="External Groups" name="external_groups" domain="[('group_type', '=', 'external')]"/>
+
+                    <group expand="0" string="Group By">
+                        <filter string="Type" name="group_by_type" context="{'group_by': 'group_type'}"/>
+                        <filter string="Access Level" name="group_by_access" context="{'group_by': 'access_level'}"/>
+                        <filter string="Created By" name="group_by_creator" context="{'group_by': 'created_by'}"/>
+                        <filter string="Creation Date" name="group_by_date" context="{'group_by': 'created_date'}"/>
+                    </group>
+                </search>
+            </field>
+        </record>
+
+        <!-- Access Groups Action -->
+        <record id="action_accessible_groups" model="ir.actions.act_window">
+            <field name="name">Access Groups</field>
+            <field name="res_model">tk.accessible.group</field>
+            <field name="view_mode">tree,form</field>
+            <field name="context">{'search_default_active': 1}</field>
+            <field name="help" type="html">
+                <p class="o_view_nocontent_smiling_face">
+                    Create your first access group!
+                </p>
+                <p>
+                    Access groups allow you to manage collections of users for easier permission management.
+                    You can create project teams, department groups, or custom access groups.
+                </p>
+            </field>
+        </record>
+    </data>
+</odoo>
