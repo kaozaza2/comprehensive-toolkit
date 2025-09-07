@@ -100,104 +100,63 @@ class AccessibleGroupWizard(models.TransientModel):
 
     @api.onchange('group_type')
     def _onchange_group_type(self):
-        """Update default settings based on group type"""
-        if self.group_type == 'project':
-            self.access_level = 'internal'
-            self.auto_add_creator_as_manager = True
-        elif self.group_type == 'department':
-            self.access_level = 'internal'
-            self.auto_add_creator_as_manager = True
-        elif self.group_type == 'external':
-            self.access_level = 'restricted'
-            self.auto_add_creator_as_manager = True
-        elif self.group_type == 'temporary':
-            self.access_level = 'restricted'
+        """Update fields based on group type selection"""
+        if self.group_type == 'temporary':
             self.is_temporary = True
-            self.auto_add_creator_as_manager = True
+        else:
+            self.is_temporary = False
 
-    @api.onchange('use_template', 'template_type')
-    def _onchange_template(self):
-        """Apply template settings"""
-        if self.use_template and self.template_type:
-            if self.template_type == 'project_team':
-                self.group_type = 'project'
-                self.access_level = 'internal'
-                self.description = "Project team access group"
-            elif self.template_type == 'department_team':
-                self.group_type = 'department'
-                self.access_level = 'internal'
-                self.description = "Department team access group"
-            elif self.template_type == 'external_partners':
-                self.group_type = 'external'
-                self.access_level = 'restricted'
-                self.description = "External partners access group"
-            elif self.template_type == 'temporary_access':
-                self.group_type = 'temporary'
-                self.access_level = 'restricted'
-                self.is_temporary = True
-                self.description = "Temporary access group"
+    @api.onchange('use_template')
+    def _onchange_use_template(self):
+        """Clear template type when not using template"""
+        if not self.use_template:
+            self.template_type = False
 
-    @api.onchange('copy_from_existing', 'existing_group_id')
-    def _onchange_copy_existing(self):
+    @api.onchange('copy_from_existing')
+    def _onchange_copy_from_existing(self):
+        """Clear existing group when not copying"""
+        if not self.copy_from_existing:
+            self.existing_group_id = False
+
+    @api.onchange('existing_group_id')
+    def _onchange_existing_group_id(self):
         """Copy users from existing group"""
-        if self.copy_from_existing and self.existing_group_id:
-            self.user_ids = self.existing_group_id.user_ids
-            self.manager_ids = self.existing_group_id.manager_ids
+        if self.existing_group_id:
+            self.user_ids = [(6, 0, self.existing_group_id.user_ids.ids)]
+            self.manager_ids = [(6, 0, self.existing_group_id.manager_ids.ids)]
 
-    @api.constrains('expiry_date')
-    def _check_expiry_date(self):
-        """Validate expiry date for temporary groups"""
-        for record in self:
-            if record.is_temporary and record.expiry_date:
-                if record.expiry_date <= fields.Datetime.now():
-                    raise ValidationError(_("Expiry date must be in the future."))
-
-    def action_create_group(self):
-        """Create the access group with selected settings"""
-        self.ensure_one()
-
-        # Validate data before creating
-        self._validate_wizard_data()
-
-        # Prepare group values
-        group_vals = {
+    def _prepare_group_values(self):
+        """Prepare values for group creation"""
+        vals = {
             'name': self.name,
             'description': self.description,
             'group_type': self.group_type,
             'access_level': self.access_level,
             'user_ids': [(6, 0, self.user_ids.ids)],
-            'manager_ids': [(6, 0, self.manager_ids.ids)],
-            'active': True,
         }
 
-        # Add creator as manager if requested
-        if self.auto_add_creator_as_manager:
-            manager_ids = set(self.manager_ids.ids)
-            manager_ids.add(self.env.user.id)
-            group_vals['manager_ids'] = [(6, 0, list(manager_ids))]
+        # Add managers
+        manager_ids = list(self.manager_ids.ids)
+        if self.auto_add_creator_as_manager and self.env.user.id not in manager_ids:
+            manager_ids.append(self.env.user.id)
 
-        # Create the group
-        group = self.env['tk.accessible.group'].create(group_vals)
+        if manager_ids:
+            vals['manager_ids'] = [(6, 0, manager_ids)]
 
-        # Set up automatic expiry for temporary groups
+        # Handle temporary groups
         if self.is_temporary and self.expiry_date:
-            # Create a scheduled action to archive the group
-            self.env['ir.cron'].create({
-                'name': f'Archive Temporary Group: {self.name}',
-                'model_id': self.env.ref('comprehensive_toolkit.model_tk_accessible_group').id,
-                'state': 'code',
-                'code': f'model.browse({group.id}).write({{"active": False}})',
-                'interval_number': 1,
-                'interval_type': 'minutes',
-                'nextcall': self.expiry_date,
-                'numbercall': 1,
-                'active': True,
-            })
+            vals['expiry_date'] = self.expiry_date
 
-        # Return action to view the created group
+        return vals
+
+    def action_create_group(self):
+        """Create the access group"""
+        vals = self._prepare_group_values()
+        group = self.env['tk.accessible.group'].create(vals)
+
         return {
             'type': 'ir.actions.act_window',
-            'name': _('Access Group Created'),
+            'name': _('Access Group'),
             'res_model': 'tk.accessible.group',
             'res_id': group.id,
             'view_mode': 'form',
@@ -205,39 +164,51 @@ class AccessibleGroupWizard(models.TransientModel):
         }
 
     def action_create_and_assign(self):
-        """Create group and assign to selected records"""
-        group_action = self.action_create_group()
-        group_id = group_action.get('res_id')
+        """Create group and assign to current record"""
+        vals = self._prepare_group_values()
+        group = self.env['tk.accessible.group'].create(vals)
 
-        # Get active records from context
+        # If called from a specific record context, assign the group
         active_model = self.env.context.get('active_model')
-        active_ids = self.env.context.get('active_ids', [])
+        active_id = self.env.context.get('active_id')
 
-        if active_model and active_ids and group_id:
-            # Assign the group to the active records
-            records = self.env[active_model].browse(active_ids)
-            for record in records:
-                if hasattr(record, 'custom_access_group_ids'):
-                    record.custom_access_group_ids = [(4, group_id)]
+        if active_model and active_id:
+            record = self.env[active_model].browse(active_id)
+            if hasattr(record, 'tk_access_group_ids'):
+                record.tk_access_group_ids = [(4, group.id)]
 
-        return group_action
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'message': _('Group created and assigned successfully'),
+                'type': 'success'
+            }
+        }
 
     def action_create_and_close(self):
-        """Create the group and close the wizard"""
-        result = self.action_create_group()
-        # Modify the action to close the wizard
+        """Create group and close wizard"""
+        vals = self._prepare_group_values()
+        group = self.env['tk.accessible.group'].create(vals)
+
         return {
-            'type': 'ir.actions.act_window_close',
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'message': _('Group "%s" created successfully') % group.name,
+                'type': 'success'
+            }
         }
 
     def action_create_and_new(self):
-        """Create the group and open a new wizard"""
-        self.action_create_group()
+        """Create group and open wizard for creating another"""
+        vals = self._prepare_group_values()
+        group = self.env['tk.accessible.group'].create(vals)
 
-        # Return action to open a new wizard
+        # Return action to open new wizard
         return {
             'type': 'ir.actions.act_window',
-            'name': _('Add Access Group'),
+            'name': _('Create Access Group'),
             'res_model': 'tk.accessible.group.wizard',
             'view_mode': 'form',
             'target': 'new',
@@ -246,44 +217,3 @@ class AccessibleGroupWizard(models.TransientModel):
                 'default_access_level': self.access_level,
             }
         }
-
-    def _validate_wizard_data(self):
-        """Validate wizard input data"""
-        if not self.name:
-            raise ValidationError(_("Group name is required."))
-
-        # Check for duplicate names
-        existing_group = self.env['tk.accessible.group'].search([
-            ('name', '=', self.name)
-        ])
-        if existing_group:
-            raise ValidationError(_("A group with this name already exists."))
-
-        # Validate temporary group settings
-        if self.is_temporary and not self.expiry_date:
-            raise ValidationError(_("Expiry date is required for temporary groups."))
-
-        if self.expiry_date and self.expiry_date <= fields.Datetime.now():
-            raise ValidationError(_("Expiry date must be in the future."))
-
-        # Validate project/department specific fields
-        if self.group_type == 'project' and not self.project_name and 'Project:' not in self.name:
-            raise ValidationError(_("Project name is required for project type groups."))
-
-        if self.group_type == 'department' and not self.department_name and 'Department:' not in self.name:
-            raise ValidationError(_("Department name is required for department type groups."))
-
-    @api.model
-    def default_get(self, fields_list):
-        """Set default values based on context"""
-        defaults = super().default_get(fields_list)
-
-        # Set defaults from context
-        context = self.env.context
-        if context.get('default_users'):
-            defaults['user_ids'] = [(6, 0, context.get('default_users', []))]
-
-        if context.get('default_managers'):
-            defaults['manager_ids'] = [(6, 0, context.get('default_managers', []))]
-
-        return defaults

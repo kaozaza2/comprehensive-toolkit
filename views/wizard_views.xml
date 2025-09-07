@@ -68,9 +68,14 @@
                     <field name="record_ids" invisible="True"/>
                     <field name="access_level" required="1"/>
                 </group>
-                <group string="Access Permissions" invisible="access_level in ['public', 'internal']">
+                <group string="Access Permissions" attrs="{'invisible': [('access_level', 'in', ['public', 'internal'])]}">
                     <field name="allowed_user_ids" widget="many2many_tags"/>
                     <field name="allowed_group_ids" widget="many2many_tags"/>
+                    <field name="custom_access_group_ids" widget="many2many_tags"/>
+                </group>
+                <group string="Access Duration">
+                    <field name="access_start_date"/>
+                    <field name="access_end_date"/>
                 </group>
                 <field name="reason" placeholder="Reason for access change..."/>
                 <footer>
@@ -157,7 +162,7 @@
                     <field name="record_id" invisible="True"/>
                     <field name="access_level" required="1"/>
                 </group>
-                <group string="Access Permissions" invisible="access_level in ['public', 'internal']">
+                <group string="Access Permissions" attrs="{'invisible': [('access_level', 'in', ['public', 'internal'])]}">
                     <field name="allowed_user_ids" widget="many2many_tags"/>
                     <field name="allowed_group_ids" widget="many2many_tags"/>
                     <field name="custom_access_group_ids" widget="many2many_tags"/>
@@ -196,24 +201,25 @@
                     </group>
                     <group>
                         <field name="use_template"/>
-                        <field name="template_type" invisible="not use_template"/>
+                        <field name="template_type" attrs="{'invisible': [('use_template', '=', False)]}"/>
                         <field name="auto_add_creator_as_manager"/>
                     </group>
                 </group>
 
                 <group string="Copy from Existing">
                     <field name="copy_from_existing"/>
-                    <field name="existing_group_id" invisible="not copy_from_existing"/>
+                    <field name="existing_group_id" attrs="{'invisible': [('copy_from_existing', '=', False)]}"/>
                 </group>
 
-                <group string="Temporary Group" invisible="group_type != 'temporary'">
+                <group string="Temporary Group" attrs="{'invisible': [('group_type', '!=', 'temporary')]}">
                     <field name="is_temporary"/>
-                    <field name="expiry_date" invisible="not is_temporary"/>
+                    <field name="expiry_date" attrs="{'invisible': [('is_temporary', '=', False)]}"/>
                 </group>
 
-                <group string="Project/Department Details" invisible="group_type not in ['project', 'department']">
-                    <field name="project_name" invisible="group_type != 'project'"/>
-                    <field name="department_name" invisible="group_type != 'department'"/>
+                <group string="Project/Department Details"
+                       attrs="{'invisible': [('group_type', 'not in', ['project', 'department'])]}">
+                    <field name="project_name" attrs="{'invisible': [('group_type', '!=', 'project')]}"/>
+                    <field name="department_name" attrs="{'invisible': [('group_type', '!=', 'department')]}"/>
                 </group>
 
                 <field name="description" placeholder="Group description..."/>
@@ -241,8 +247,11 @@
 
                 <footer>
                     <button name="action_create_group" string="Create Group" type="object" class="btn-primary"/>
-                    <button name="action_create_and_assign" string="Create and Assign" type="object" class="btn-success"/>
-                    <button name="action_create_and_close" string="Create and Close" type="object" class="btn-secondary"/>
+                    <button name="action_create_and_assign" string="Create and Assign" type="object"
+                            class="btn-success"/>
+                    <button name="action_create_and_close" string="Create and Close" type="object"
+                            class="btn-secondary"/>
+                    <button name="action_create_and_new" string="Create and New" type="object" class="btn-info"/>
                     <button string="Cancel" class="btn-secondary" special="cancel"/>
                 </footer>
             </form>

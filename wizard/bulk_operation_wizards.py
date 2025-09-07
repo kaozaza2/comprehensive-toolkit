@@ -107,7 +107,7 @@ class BulkOwnershipWizard(models.TransientModel):
                 error_records.append(f"{record.display_name}: {str(e)}")
 
         # Show result message
-        message = _("Successfully transferred ownership of %s records.") % success_count
+        message = _("Successfully transferred ownership for %s records.") % success_count
         if error_records:
             message += _("\n\nErrors occurred for: %s") % ", ".join(error_records)
 
@@ -137,10 +137,13 @@ class BulkAccessWizard(models.TransientModel):
     ], string='Access Level', required=True)
     allowed_user_ids = fields.Many2many('res.users', string='Allowed Users')
     allowed_group_ids = fields.Many2many('res.groups', string='Allowed Groups')
+    custom_access_group_ids = fields.Many2many('tk.accessible.group', string='Allowed Custom Groups')
+    access_start_date = fields.Datetime(string='Access Start Date', help="Date from which access is granted")
+    access_end_date = fields.Datetime(string='Access End Date', help="Date until which access is granted")
     reason = fields.Text(string='Reason')
 
     def action_set_access(self):
-        """Bulk set access level for selected records"""
+        """Bulk set access control for selected records"""
         self.ensure_one()
 
         # Parse record IDs
@@ -151,19 +154,35 @@ class BulkAccessWizard(models.TransientModel):
         # Get the records
         records = self.env[self.model_name].browse(record_ids)
 
-        # Update access for each record
+        # Update access control for each record
         success_count = 0
         error_records = []
 
         for record in records:
             try:
-                if hasattr(record, 'access_level'):
-                    vals = {
-                        'access_level': self.access_level,
-                        'allowed_user_ids': [(6, 0, self.allowed_user_ids.ids)],
-                        'allowed_group_ids': [(6, 0, self.allowed_group_ids.ids)],
-                    }
-                    record.write(vals)
+                if hasattr(record, 'set_access_level'):
+                    record.set_access_level(self.access_level, reason=self.reason)
+
+                    # Set allowed users and groups if restricted
+                    if self.access_level in ['restricted', 'private']:
+                        if self.allowed_user_ids:
+                            record.bulk_grant_access_to_users(self.allowed_user_ids.ids, reason=self.reason)
+                        if self.allowed_group_ids:
+                            for group in self.allowed_group_ids:
+                                record.grant_access_to_group(group.id, reason=self.reason)
+                        if self.custom_access_group_ids:
+                            for access_group in self.custom_access_group_ids:
+                                record.grant_access_to_custom_group(access_group.id, reason=self.reason)
+
+                # Set access duration if specified
+                if hasattr(record, 'set_access_duration'):
+                    if self.access_start_date or self.access_end_date:
+                        record.set_access_duration(
+                            start_date=self.access_start_date,
+                            end_date=self.access_end_date,
+                            reason=self.reason
+                        )
+
                     success_count += 1
                 else:
                     error_records.append(record.display_name)
@@ -171,7 +190,7 @@ class BulkAccessWizard(models.TransientModel):
                 error_records.append(f"{record.display_name}: {str(e)}")
 
         # Show result message
-        message = _("Successfully updated access for %s records.") % success_count
+        message = _("Successfully updated access control for %s records.") % success_count
         if error_records:
             message += _("\n\nErrors occurred for: %s") % ", ".join(error_records)
 
@@ -179,7 +198,7 @@ class BulkAccessWizard(models.TransientModel):
             'type': 'ir.actions.client',
             'tag': 'display_notification',
             'params': {
-                'title': _('Bulk Access Update Complete'),
+                'title': _('Bulk Access Control Update Complete'),
                 'message': message,
                 'type': 'success' if not error_records else 'warning',
                 'sticky': True,
@@ -195,51 +214,50 @@ class TransferOwnershipWizard(models.TransientModel):
     record_id = fields.Integer(string='Record ID', required=True)
     current_owner_id = fields.Many2one('res.users', string='Current Owner', readonly=True)
     new_owner_id = fields.Many2one('res.users', string='New Owner', required=True)
-    reason = fields.Text(string='Reason for Transfer')
+    reason = fields.Text(string='Reason')
 
     @api.model
     def default_get(self, fields_list):
-        defaults = super().default_get(fields_list)
+        """Set default values including current owner"""
+        res = super().default_get(fields_list)
 
-        # Get context data
-        active_model = self.env.context.get('active_model')
-        active_id = self.env.context.get('active_id')
+        if 'record_id' in res and 'model_name' in res:
+            record = self.env[res['model_name']].browse(res['record_id'])
+            if hasattr(record, 'owner_id') and record.owner_id:
+                res['current_owner_id'] = record.owner_id.id
 
-        if active_model and active_id:
-            record = self.env[active_model].browse(active_id)
-            defaults.update({
-                'model_name': active_model,
-                'record_id': active_id,
-                'current_owner_id': record.owner_id.id if hasattr(record, 'owner_id') and record.owner_id else False,
-            })
-
-        return defaults
+        return res
 
     def action_transfer(self):
-        """Transfer ownership to the new owner"""
+        """Transfer ownership of the record"""
         self.ensure_one()
 
+        # Get the record
         record = self.env[self.model_name].browse(self.record_id)
+
         if not record.exists():
             raise ValidationError(_("Record not found."))
 
-        if hasattr(record, 'transfer_ownership'):
-            record.transfer_ownership(
-                new_owner_id=self.new_owner_id.id,
-                reason=self.reason
-            )
-        else:
-            raise ValidationError(_("This record does not support ownership transfer."))
+        try:
+            if hasattr(record, 'transfer_ownership'):
+                record.transfer_ownership(
+                    new_owner_id=self.new_owner_id.id,
+                    reason=self.reason
+                )
 
-        return {
-            'type': 'ir.actions.client',
-            'tag': 'display_notification',
-            'params': {
-                'title': _('Ownership Transferred'),
-                'message': _('Ownership has been successfully transferred to %s.') % self.new_owner_id.name,
-                'type': 'success',
-            }
-        }
+                return {
+                    'type': 'ir.actions.client',
+                    'tag': 'display_notification',
+                    'params': {
+                        'title': _('Ownership Transferred'),
+                        'message': _('Ownership successfully transferred to %s') % self.new_owner_id.name,
+                        'type': 'success',
+                    }
+                }
+            else:
+                raise ValidationError(_("This record does not support ownership transfer."))
+        except Exception as e:
+            raise ValidationError(_("Error transferring ownership: %s") % str(e))
 
 
 class DelegateResponsibilityWizard(models.TransientModel):
@@ -252,57 +270,47 @@ class DelegateResponsibilityWizard(models.TransientModel):
     responsibility_type = fields.Selection([
         ('primary', 'Primary Responsibility'),
         ('secondary', 'Secondary Responsibility'),
-        ('backup', 'Backup Responsibility'),
+        ('shared', 'Shared Responsibility'),
         ('temporary', 'Temporary Responsibility')
-    ], string='Responsibility Type', default='primary')
+    ], string='Responsibility Type', default='primary', required=True)
     end_date = fields.Datetime(string='End Date')
-    description = fields.Text(string='Description')
+    description = fields.Text(string='Responsibility Description')
     reason = fields.Text(string='Reason for Delegation')
 
-    @api.model
-    def default_get(self, fields_list):
-        defaults = super().default_get(fields_list)
-
-        # Get context data
-        active_model = self.env.context.get('active_model')
-        active_id = self.env.context.get('active_id')
-
-        if active_model and active_id:
-            defaults.update({
-                'model_name': active_model,
-                'record_id': active_id,
-            })
-
-        return defaults
-
     def action_delegate(self):
-        """Delegate responsibility to the selected users"""
+        """Delegate responsibility for the record"""
         self.ensure_one()
 
+        # Get the record
         record = self.env[self.model_name].browse(self.record_id)
+
         if not record.exists():
             raise ValidationError(_("Record not found."))
 
-        if hasattr(record, 'assign_responsibility'):
-            record.assign_responsibility(
-                user_ids=self.user_ids.ids,
-                responsibility_type=self.responsibility_type,
-                end_date=self.end_date,
-                description=self.description,
-                reason=self.reason
-            )
-        else:
-            raise ValidationError(_("This record does not support responsibility delegation."))
+        try:
+            if hasattr(record, 'delegate_responsibility'):
+                record.delegate_responsibility(
+                    user_ids=self.user_ids.ids,
+                    responsibility_type=self.responsibility_type,
+                    end_date=self.end_date,
+                    description=self.description,
+                    reason=self.reason
+                )
 
-        return {
-            'type': 'ir.actions.client',
-            'tag': 'display_notification',
-            'params': {
-                'title': _('Responsibility Delegated'),
-                'message': _('Responsibility has been successfully delegated to %s users.') % len(self.user_ids),
-                'type': 'success',
-            }
-        }
+                user_names = ', '.join(self.user_ids.mapped('name'))
+                return {
+                    'type': 'ir.actions.client',
+                    'tag': 'display_notification',
+                    'params': {
+                        'title': _('Responsibility Delegated'),
+                        'message': _('Responsibility successfully delegated to %s') % user_names,
+                        'type': 'success',
+                    }
+                }
+            else:
+                raise ValidationError(_("This record does not support responsibility delegation."))
+        except Exception as e:
+            raise ValidationError(_("Error delegating responsibility: %s") % str(e))
 
 
 class ManageAccessWizard(models.TransientModel):
@@ -320,62 +328,54 @@ class ManageAccessWizard(models.TransientModel):
     allowed_user_ids = fields.Many2many('res.users', string='Allowed Users')
     allowed_group_ids = fields.Many2many('res.groups', string='Allowed Groups')
     custom_access_group_ids = fields.Many2many('tk.accessible.group', string='Custom Access Groups')
-    access_start_date = fields.Datetime(string='Access Start Date')
-    access_end_date = fields.Datetime(string='Access End Date')
-    reason = fields.Text(string='Reason')
-
-    @api.model
-    def default_get(self, fields_list):
-        defaults = super().default_get(fields_list)
-
-        # Get context data
-        active_model = self.env.context.get('active_model')
-        active_id = self.env.context.get('active_id')
-
-        if active_model and active_id:
-            record = self.env[active_model].browse(active_id)
-            defaults.update({
-                'model_name': active_model,
-                'record_id': active_id,
-                'access_level': record.access_level if hasattr(record, 'access_level') else 'internal',
-                'allowed_user_ids': [(6, 0, record.allowed_user_ids.ids)] if hasattr(record, 'allowed_user_ids') else [],
-                'allowed_group_ids': [(6, 0, record.allowed_group_ids.ids)] if hasattr(record, 'allowed_group_ids') else [],
-                'custom_access_group_ids': [(6, 0, record.custom_access_group_ids.ids)] if hasattr(record, 'custom_access_group_ids') else [],
-                'access_start_date': record.access_start_date if hasattr(record, 'access_start_date') else False,
-                'access_end_date': record.access_end_date if hasattr(record, 'access_end_date') else False,
-            })
-
-        return defaults
+    access_start_date = fields.Datetime(string='Access Start Date', help="Date from which access is granted")
+    access_end_date = fields.Datetime(string='Access End Date', help="Date until which access is granted")
+    reason = fields.Text(string='Reason for Access Change')
 
     def action_update_access(self):
-        """Update access settings for the record"""
+        """Update access control for the record"""
         self.ensure_one()
 
+        # Get the record
         record = self.env[self.model_name].browse(self.record_id)
+
         if not record.exists():
             raise ValidationError(_("Record not found."))
 
-        if hasattr(record, 'access_level'):
-            vals = {
-                'access_level': self.access_level,
-                'allowed_user_ids': [(6, 0, self.allowed_user_ids.ids)],
-                'allowed_group_ids': [(6, 0, self.allowed_group_ids.ids)],
-                'access_start_date': self.access_start_date,
-                'access_end_date': self.access_end_date,
-            }
-            if hasattr(record, 'custom_access_group_ids'):
-                vals['custom_access_group_ids'] = [(6, 0, self.custom_access_group_ids.ids)]
+        try:
+            if hasattr(record, 'set_access_level'):
+                record.set_access_level(self.access_level, reason=self.reason)
 
-            record.write(vals)
-        else:
-            raise ValidationError(_("This record does not support access management."))
+                # Set allowed users and groups if restricted
+                if self.access_level in ['restricted', 'private']:
+                    if self.allowed_user_ids:
+                        record.bulk_grant_access_to_users(self.allowed_user_ids.ids, reason=self.reason)
+                    if self.allowed_group_ids:
+                        for group in self.allowed_group_ids:
+                            record.grant_access_to_group(group.id, reason=self.reason)
+                    if self.custom_access_group_ids:
+                        for access_group in self.custom_access_group_ids:
+                            record.grant_access_to_custom_group(access_group.id, reason=self.reason)
 
-        return {
-            'type': 'ir.actions.client',
-            'tag': 'display_notification',
-            'params': {
-                'title': _('Access Updated'),
-                'message': _('Access settings have been successfully updated.'),
-                'type': 'success',
-            }
-        }
+                # Set access duration if specified
+                if hasattr(record, 'set_access_duration'):
+                    if self.access_start_date or self.access_end_date:
+                        record.set_access_duration(
+                            start_date=self.access_start_date,
+                            end_date=self.access_end_date,
+                            reason=self.reason
+                        )
+
+                return {
+                    'type': 'ir.actions.client',
+                    'tag': 'display_notification',
+                    'params': {
+                        'title': _('Access Updated'),
+                        'message': _('Access control successfully updated'),
+                        'type': 'success',
+                    }
+                }
+            else:
+                raise ValidationError(_("This record does not support access control management."))
+        except Exception as e:
+            raise ValidationError(_("Error updating access control: %s") % str(e))

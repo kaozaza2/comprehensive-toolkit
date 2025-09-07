@@ -61,6 +61,7 @@ class AccessibleGroupMixin(models.Model):
     is_manager = fields.Boolean(
         string='Is Manager',
         compute='_compute_is_manager',
+        search='_search_is_manager',
         help="Whether current user can manage this group"
     )
 
@@ -80,6 +81,16 @@ class AccessibleGroupMixin(models.Model):
         ('private', 'Private - Only creator can see')
     ], string='Visibility', default='internal', help="Who can see this group")
 
+    # Temporary group fields
+    is_temporary = fields.Boolean(
+        string='Temporary Group',
+        help="This group will expire after a certain date"
+    )
+    expiry_date = fields.Datetime(
+        string='Expiry Date',
+        help="Date when this group should be automatically archived"
+    )
+
     @api.depends('user_ids')
     def _compute_user_count(self):
         for record in self:
@@ -93,6 +104,18 @@ class AccessibleGroupMixin(models.Model):
                 record.created_by == self.env.user or
                 self.env.user in record.manager_ids
             )
+
+    def _search_is_manager(self, operator, value):
+        """Search method for is_manager field"""
+        if operator == '=' and value:
+            # Return groups where current user is manager
+            return [
+                '|', '|',
+                ('created_by', '=', self.env.user.id),
+                ('manager_ids', 'in', [self.env.user.id]),
+                ('created_by', '=', self.env.user.id)
+            ]
+        return []
 
     def add_user(self, user_id, reason=None):
         """Add a user to this group"""
@@ -250,8 +273,11 @@ class AccessibleGroupMixin(models.Model):
             'description': f"Access group for {project_name} project",
             'group_type': 'project',
             'user_ids': [(6, 0, user_ids)] if user_ids else [],
-            'manager_ids': [(6, 0, manager_ids)] if manager_ids else [],
         }
+
+        if manager_ids:
+            vals['manager_ids'] = [(6, 0, manager_ids)]
+
         return self.create(vals)
 
     @api.model
@@ -262,8 +288,11 @@ class AccessibleGroupMixin(models.Model):
             'description': f"Access group for {department_name} department",
             'group_type': 'department',
             'user_ids': [(6, 0, user_ids)] if user_ids else [],
-            'manager_ids': [(6, 0, manager_ids)] if manager_ids else [],
         }
+
+        if manager_ids:
+            vals['manager_ids'] = [(6, 0, manager_ids)]
+
         return self.create(vals)
 
     @api.model

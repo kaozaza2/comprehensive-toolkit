@@ -351,6 +351,22 @@ class AccessibleMixin(models.AbstractModel):
 
         return True
 
+    def set_access_duration(self, start_date=None, end_date=None, reason=None):
+        """Set the access duration for this record"""
+        if not self.can_grant_access:
+            raise AccessError(_("You don't have permission to change access duration of this record."))
+
+        if start_date:
+            self.access_start_date = start_date
+        if end_date:
+            self.access_end_date = end_date
+
+        # Log the access duration change
+        self._log_access_change('change_duration', None, reason,
+                              extra_info=f"Start: {start_date}, End: {end_date}")
+
+        return True
+
     def get_all_accessible_users(self):
         """Get all users who have access to this record"""
         return self.all_allowed_users_ids
@@ -363,7 +379,7 @@ class AccessibleMixin(models.AbstractModel):
 
         return self._check_user_access(user)
 
-    def bulk_grant_access_to_users(self, user_ids, reason=None):
+    def bulk_grant_access_to_users(self, user_ids, start_date=None, end_date=None, reason=None):
         """Grant access to multiple users at once"""
         if not self.can_grant_access:
             raise AccessError(_("You don't have permission to grant access to this record."))
@@ -382,6 +398,12 @@ class AccessibleMixin(models.AbstractModel):
             user_names = ', '.join(new_users.mapped('name'))
             self._log_access_change('bulk_grant_users', None, reason,
                                   extra_info=f"Granted access to: {user_names}")
+
+        if start_date:
+            self.access_start_date = start_date
+
+        if end_date:
+            self.access_end_date = end_date
 
         return True
 
