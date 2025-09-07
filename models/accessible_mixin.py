@@ -430,39 +430,3 @@ class AccessibleMixin(models.AbstractModel):
             'user_id': self.env.user.id,
             'date': fields.Datetime.now()
         })
-
-
-class HasAccessibleMixin(models.AbstractModel):
-    _name = 'tk.has.accessible.mixin'
-    _description = 'Has Accessible Mixin - For models that manage accessible records'
-
-    accessible_record_count = fields.Integer(
-        string='Accessible Records Count',
-        compute='_compute_accessible_record_count',
-        help="Number of accessible records managed by this entity"
-    )
-    restricted_record_count = fields.Integer(
-        string='Restricted Records Count',
-        compute='_compute_restricted_record_count',
-        help="Number of restricted access records"
-    )
-
-    def _compute_accessible_record_count(self):
-        """Override in concrete models to count accessible records"""
-        for record in self:
-            record.accessible_record_count = 0
-
-    def _compute_restricted_record_count(self):
-        """Override in concrete models to count restricted records"""
-        for record in self:
-            record.restricted_record_count = 0
-
-    def get_accessible_records(self, model_name=None):
-        """Get records accessible to this entity"""
-        # This should be implemented in concrete models
-        return self.env[model_name or 'res.partner'].search([])
-
-    def grant_bulk_access(self, record_ids, user_ids=None, group_ids=None, access_level=None):
-        """Grant access to multiple records"""
-        # This should be implemented in concrete models
-        pass
