@@ -152,6 +152,14 @@ class AssignableMixin(models.AbstractModel):
                 (is_assigned or has_ownership or has_access or self.env.user.has_group('base.group_system'))
             )
 
+    def is_assigned_to_user(self, user_id):
+        """Check if the record is assigned to a specific user"""
+        user = self.env['res.users'].browse(user_id)
+        if not user.exists():
+            raise ValidationError(_("Invalid user specified."))
+
+        return user in self.assigned_user_ids
+
     def assign_to_users(self, user_ids, deadline=None, description=None,
                        priority='normal', reason=None):
         """Assign record to multiple users"""

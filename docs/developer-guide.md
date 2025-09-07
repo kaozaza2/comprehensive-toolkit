@@ -87,455 +87,502 @@ is_owner = record.is_owner_or_co_owner(user)
 all_owners = record.get_all_owners()  # Returns recordset
 ```
 
-### Custom Ownership Logic
+## 🎯 Responsible Mixin Implementation
+
+### Core Fields Added
+```python
+# Automatically added to your model
+responsible_user_ids = fields.Many2many('res.users', 'Responsible Users')
+secondary_responsible_ids = fields.Many2many('res.users', 'Secondary Responsible')
+responsibility_start_date = fields.Datetime('Responsibility Start Date')
+responsibility_end_date = fields.Datetime('Responsibility End Date')
+responsibility_delegated_by = fields.Many2one('res.users', 'Delegated By')
+responsibility_description = fields.Text('Responsibility Description')
+
+# Computed fields
+is_responsibility_active = fields.Boolean('Responsibility Active')
+is_responsibility_expired = fields.Boolean('Responsibility Expired')
+can_delegate = fields.Boolean('Can Delegate')
+responsibility_count = fields.Integer('Number of Responsible Users')
+secondary_responsibility_count = fields.Integer('Number of Secondary Responsible')
+```
+
+### Available Methods
+```python
+# Assign responsibility
+record.assign_responsibility(
+    user_ids=[user1.id, user2.id],
+    end_date=fields.Datetime.now() + timedelta(days=30),
+    description="Review and approve document",
+    reason="Project milestone"
+)
+
+# Assign secondary responsibility
+record.assign_secondary_responsibility(
+    user_ids=[user3.id, user4.id],
+    reason="Backup responsibility"
+)
+
+# Transfer/delegate responsibility
+record.delegate_responsibility([new_user.id], reason="Delegation")
+record.transfer_responsibility([new_user.id], reason="Transfer")
+
+# Secondary responsibility management
+record.delegate_secondary_responsibility([user.id], reason="Secondary delegation")
+record.transfer_secondary_responsibility([user.id], reason="Secondary transfer")
+
+# Individual user management
+record.add_responsible_user(user.id, is_secondary=False, reason="Adding user")
+record.remove_responsible_user(user.id, is_secondary=False, reason="Removing user")
+
+# Escalation and revocation
+record.escalate_responsibility(manager.id, reason="Escalation needed")
+record.revoke_all_responsibility(reason="Task completed")
+```
+
+### Custom Responsibility Logic
 ```python
 class CustomModel(models.Model):
     _name = 'custom.model'
-    _inherit = ['tk.ownable.mixin']
+    _inherit = ['tk.responsible.mixin']
     
-    def custom_ownership_check(self):
-        """Add custom business logic"""
-        if self.state == 'locked':
-            raise ValidationError("Cannot change ownership of locked records")
-        return super().transfer_ownership()
+    @api.depends('responsible_user_ids', 'state')
+    def _compute_can_delegate(self):
+        """Override delegation permissions with custom logic"""
+        super()._compute_can_delegate()
+        for record in self:
+            # Add custom business rules
+            if record.state == 'locked':
+                record.can_delegate = False
+            elif record.priority == 'urgent':
+                # Only managers can delegate urgent items
+                record.can_delegate = self.env.user.has_group('base.group_system')
     
-    @api.model
-    def create(self, vals):
-        """Auto-assign ownership on creation"""
-        record = super().create(vals)
-        if not record.owner_id:
-            record.owner_id = self.env.user
-        return record
+    def custom_responsibility_workflow(self):
+        """Custom workflow integration"""
+        if self.state == 'ready_for_review':
+            # Auto-assign to quality team
+            quality_users = self.env.ref('my_module.group_quality').users
+            self.assign_responsibility(
+                user_ids=quality_users.ids,
+                description="Quality review required",
+                reason="Workflow automation"
+            )
 ```
 
 ## 📋 Assignable Mixin Implementation
 
 ### Core Fields Added
 ```python
-assigned_user_ids = fields.Many2many('res.users', 'Assigned To')
-assignment_status = fields.Selection([...], 'Assignment Status')
+assigned_user_ids = fields.Many2many('res.users', 'Assigned Users')
+assignment_date = fields.Datetime('Assignment Date')
+assignment_deadline = fields.Datetime('Assignment Deadline')
+assignment_description = fields.Text('Assignment Description')
 assignment_priority = fields.Selection([...], 'Priority')
-assignment_deadline = fields.Datetime('Deadline')
-assignment_description = fields.Text('Description')
-
-# Computed fields
-is_assigned = fields.Boolean('Is Assigned', compute='_compute_is_assigned')
-is_overdue = fields.Boolean('Is Overdue', compute='_compute_is_overdue')
-is_assigned_to_me = fields.Boolean('Assigned to Me', compute='_compute_is_assigned_to_me')
+assignment_status = fields.Selection([...], 'Status')
 ```
 
 ### Available Methods
 ```python
-# Assignment operations
-record.assign_to_users([user1_id, user2_id], 
-                      deadline=datetime.now() + timedelta(days=7),
-                      description="Complete feature",
-                      priority='high',
-                      reason="Urgent requirement")
+# Basic assignment
+record.assign_to_users(
+    user_ids=[user1.id, user2.id],
+    deadline=fields.Datetime.now() + timedelta(days=7),
+    description="Complete the task",
+    priority='high',
+    reason="Urgent project"
+)
 
-record.add_assignee(user_id, reason="Additional help needed")
-record.remove_assignee(user_id, reason="No longer required")
-record.unassign_all_users(reason="Task cancelled")
-
-# Status management
-record.start_assignment(reason="Work begun")
-record.complete_assignment(reason="Task finished") 
-record.cancel_assignment(reason="No longer needed")
+# Assignment management
+record.unassign_from_users([user1.id], reason="Role change")
+record.reassign_to_users([new_user.id], reason="Reassignment")
+record.update_assignment_status('in_progress')
 ```
 
-### Smart Assignment Permissions
-The mixin includes intelligent permission checking:
-```python
-def _compute_can_assign(self):
-    """Smart permission calculation"""
-    for record in self:
-        # Considers ownership, access levels, current assignments
-        has_ownership = record.owner_id == self.env.user
-        has_access = record._check_access_permissions()
-        is_assigned = self.env.user in record.assigned_user_ids
-        
-        record.can_assign = has_ownership or has_access or is_assigned
-```
-
-## 🔐 Accessible Mixin Implementation
+## 🔒 Accessible Mixin Implementation
 
 ### Core Fields Added
 ```python
+# Access control fields
 access_level = fields.Selection([
     ('public', 'Public'),
-    ('internal', 'Internal'), 
+    ('internal', 'Internal'),
     ('restricted', 'Restricted'),
     ('private', 'Private')
-], 'Access Level')
+], default='internal', tracking=True)
 
 allowed_user_ids = fields.Many2many('res.users', 'Allowed Users')
 allowed_group_ids = fields.Many2many('res.groups', 'Allowed Groups')
-custom_access_group_ids = fields.Many2many('tk.accessible.group', 'Custom Groups')
+custom_access_group_ids = fields.Many2many('tk.accessible.group', 'Custom Access Groups')
 
-# Time-based access
 access_start_date = fields.Datetime('Access Start Date')
 access_end_date = fields.Datetime('Access End Date')
 
 # Computed fields
-has_access = fields.Boolean('Has Access', compute='_compute_has_access')
-is_access_expired = fields.Boolean('Access Expired', compute='_compute_is_access_expired')
+allowed_group_users_ids = fields.Many2many('res.users', compute='_compute_allowed_group_users_ids', store=True)
+custom_group_users_ids = fields.Many2many('res.users', compute='_compute_custom_group_users_ids', store=True)
+all_allowed_users_ids = fields.Many2many('res.users', compute='_compute_all_allowed_users_ids', store=True)
+is_access_expired = fields.Boolean(compute='_compute_is_access_expired')
+can_grant_access = fields.Boolean(compute='_compute_can_grant_access')
+has_access = fields.Boolean(compute='_compute_has_access')
 ```
 
 ### Available Methods
 ```python
-# Access management
-record.grant_access([user1_id, user2_id], reason="Review access")
-record.revoke_access([user_id], reason="No longer needed")
-record.grant_group_access(group_id, reason="Department access")
+# User access management
+record.grant_access_to_user(
+    user_id=user.id,
+    start_date=fields.Datetime.now(),
+    end_date=fields.Datetime.now() + timedelta(days=30),
+    reason="Project collaboration"
+)
 
-# Access checking
-has_access = record.check_user_access(user)
-access_reason = record.get_access_reason(user)
+record.revoke_access_from_user(user.id, reason="Project ended")
 
-# Bulk operations
-record.set_access_level('restricted', reason="Security requirement")
-record.copy_access_from(other_record, reason="Same permissions needed")
+# Bulk user operations
+record.bulk_grant_access_to_users(
+    user_ids=[user1.id, user2.id],
+    end_date=fields.Datetime.now() + timedelta(days=30),
+    reason="Team access"
+)
+
+# Group access management
+record.grant_access_to_group(group.id, reason="Department access")
+record.grant_access_to_custom_group(custom_group.id, reason="Project team access")
+
+# Access level and duration
+record.set_access_level('restricted', reason="Confidential information")
+record.set_access_duration(
+    start_date=fields.Datetime.now(),
+    end_date=fields.Datetime.now() + timedelta(days=60),
+    reason="Temporary project access"
+)
+
+# Custom group creation
+team_group = record.create_and_assign_custom_group(
+    group_name="Project Alpha Team",
+    user_ids=[user1.id, user2.id, user3.id],
+    group_type='project',
+    reason="Project team setup"
+)
 ```
 
-### Custom Access Groups
+### Custom Access Control Logic
 ```python
-# Create custom access group
-access_group = self.env['tk.accessible.group'].create({
-    'name': 'Project Alpha Team',
-    'description': 'Team members for Project Alpha',
-    'user_ids': [(6, 0, [user1.id, user2.id, user3.id])],
-    'active': True
-})
-
-# Apply to records
-records.write({
-    'custom_access_group_ids': [(4, access_group.id)]
-})
-```
-
-## 👥 Responsible Mixin Implementation
-
-### Core Fields Added
-```python
-responsible_user_ids = fields.Many2many('res.users', 'Responsible Users')
-secondary_responsible_ids = fields.Many2many('res.users', 'Secondary Responsible')
-responsibility_type = fields.Selection([...], 'Responsibility Type')
-responsibility_start_date = fields.Datetime('Start Date')
-responsibility_end_date = fields.Datetime('End Date')
-responsibility_description = fields.Text('Description')
-
-# Computed fields
-is_responsibility_active = fields.Boolean('Active', compute='_compute_is_responsibility_active')
-can_delegate = fields.Boolean('Can Delegate', compute='_compute_can_delegate')
-```
-
-### Available Methods
-```python
-# Responsibility assignment
-record.assign_responsibility([user1_id], 
-                           responsibility_type='primary',
-                           description="Overall coordination",
-                           end_date=datetime.now() + timedelta(days=30))
-
-# Delegation
-record.delegate_responsibility(user_id, 
-                             end_date=datetime.now() + timedelta(days=7),
-                             reason="Vacation coverage")
-
-# Management
-record.add_secondary_responsible([user1_id, user2_id])
-record.remove_responsibility(user_id, reason="Role change")
-record.transfer_responsibility(old_user_id, new_user_id, reason="Staff change")
-```
-
-## 🏗️ Advanced Integration Patterns
-
-### Custom Workflow Integration
-```python
-class WorkflowModel(models.Model):
-    _name = 'workflow.model'
-    _inherit = ['tk.ownable.mixin', 'tk.assignable.mixin']
-    
-    state = fields.Selection([
-        ('draft', 'Draft'),
-        ('review', 'Under Review'),
-        ('approved', 'Approved')
-    ])
-    
-    def action_submit_for_review(self):
-        """Custom workflow action with toolkit integration"""
-        # Assign to reviewers
-        reviewer_group = self.env.ref('my_module.group_reviewers')
-        reviewers = reviewer_group.users
-        
-        self.assign_to_users(
-            reviewers.ids,
-            deadline=fields.Datetime.now() + timedelta(days=3),
-            description="Review and approve document",
-            priority='normal',
-            reason="Workflow submission"
-        )
-        
-        self.state = 'review'
-```
-
-### Smart Default Values
-```python
-class SmartModel(models.Model):
-    _name = 'smart.model'
-    _inherit = ['tk.accessible.mixin', 'tk.responsible.mixin']
-    
-    @api.model
-    def create(self, vals):
-        """Set smart defaults on creation"""
-        record = super().create(vals)
-        
-        # Auto-set access level based on context
-        if self.env.context.get('public_create'):
-            record.access_level = 'public'
-        elif self.env.context.get('department_create'):
-            record.access_level = 'restricted'
-            record.grant_group_access(self.env.user.groups_id[0].id)
-        
-        # Auto-assign responsibility to creator
-        record.assign_responsibility(
-            [self.env.user.id],
-            responsibility_type='primary',
-            description="Record creator"
-        )
-        
-        return record
-```
-
-### Permission Override Patterns
-```python
-class SecureModel(models.Model):
-    _name = 'secure.model'
+class CustomModel(models.Model):
+    _name = 'custom.model'
     _inherit = ['tk.accessible.mixin']
     
     def _compute_can_grant_access(self):
-        """Override default permission logic"""
+        """Override access granting permissions with custom logic"""
         super()._compute_can_grant_access()
         for record in self:
             # Add custom business rules
-            if record.security_level == 'classified':
-                record.can_grant_access = self.env.user.has_group('base.group_system')
-            elif record.department_id != self.env.user.department_id:
+            if record.state == 'locked':
                 record.can_grant_access = False
+            elif record.confidentiality_level == 'top_secret':
+                # Only security officers can grant access
+                record.can_grant_access = self.env.user.has_group('security.group_security_officer')
+    
+    def custom_access_workflow(self):
+        """Custom workflow integration with access control"""
+        if self.state == 'draft':
+            # Set internal access for drafts
+            self.set_access_level('internal', reason="Draft document")
+        elif self.state == 'review':
+            # Create review team group
+            reviewers = self.env['res.users'].search([('is_reviewer', '=', True)])
+            self.create_and_assign_custom_group(
+                group_name=f"Review Team - {self.name}",
+                user_ids=reviewers.ids,
+                group_type='temporary',
+                reason="Document review process"
+            )
+            self.set_access_level('restricted', reason="Under review")
+        elif self.state == 'approved':
+            # Set public access for approved documents
+            self.set_access_level('public', reason="Document approved")
 ```
 
-## 📊 Dashboard Integration
+## 🔒 Accessible Group Mixin Implementation
 
-### Custom Dashboard Widgets
+### Enhanced Group Management Fields
 ```python
-class CustomDashboard(models.TransientModel):
-    _inherit = 'tk.comprehensive.dashboard'
-    
-    # Add custom statistics
-    my_custom_count = fields.Integer(
-        'Custom Count',
-        compute='_compute_custom_statistics'
-    )
-    
-    def _compute_custom_statistics(self):
-        for dashboard in self:
-            # Add your custom logic
-            count = self.env['your.model'].search_count([
-                ('assigned_user_ids', 'in', self.env.user.id),
-                ('state', '=', 'in_progress')
-            ])
-            dashboard.my_custom_count = count
+# Group management fields
+allowed_group_users_ids = fields.Many2many('res.users', compute='_compute_allowed_group_users_ids', store=True)
+custom_access_group_ids = fields.Many2many('tk.accessible.group', 'Custom Access Groups')
+can_manage_groups = fields.Boolean(compute='_compute_can_manage_groups')
+total_group_users_count = fields.Integer(compute='_compute_group_statistics')
+active_custom_groups_count = fields.Integer(compute='_compute_group_statistics')
+has_group_access = fields.Boolean(compute='_compute_has_group_access')
 ```
 
-## 🔍 Search and Domain Helpers
-
-### Smart Domain Functions
+### Available Methods
 ```python
-def get_accessible_domain(self, model_name):
-    """Get domain for records user can access"""
-    domain = []
-    
-    # Public records
-    domain.append('|')
-    domain.append(('access_level', '=', 'public'))
-    
-    # Internal records (if internal user)
-    if not self.env.user.share:
-        domain.append('|')
-        domain.append(('access_level', '=', 'internal'))
-    
-    # Records user has explicit access to
-    domain.append('|')
-    domain.append(('allowed_user_ids', 'in', self.env.user.id))
-    
-    # Records owned by user
-    domain.append(('owner_id', '=', self.env.user.id))
-    
-    return domain
+# Custom group management
+record.add_custom_access_group(group.id, reason="Project collaboration")
+record.remove_custom_access_group(group.id, reason="Project ended")
+record.replace_custom_access_groups([group1.id, group2.id], reason="Team restructure")
+record.clear_all_custom_groups(reason="Project completion")
+
+# Group information
+users = record.get_users_from_group(group.id)
+all_users = record.get_all_group_users(include_inactive=False)
+has_access = record.check_user_group_access(user)
+summary = record.get_group_access_summary()
+
+# Actions
+record.action_manage_custom_groups()  # Opens wizard
+record.action_view_group_users()      # Shows user list
 ```
 
-### Custom Search Methods
+## 📊 Custom Access Group Model
+
+### Implementation
 ```python
-class CustomSearch(models.Model):
-    _name = 'custom.search'
-    _inherit = ['tk.ownable.mixin', 'tk.assignable.mixin']
+class CustomAccessGroup(models.Model):
+    _name = 'tk.accessible.group'
+    _description = 'Custom Access Group'
+    
+    name = fields.Char('Group Name', required=True)
+    description = fields.Text('Description')
+    group_type = fields.Selection([
+        ('project', 'Project Team'),
+        ('department', 'Department'),
+        ('temporary', 'Temporary Access'),
+        ('custom', 'Custom Group')
+    ], default='custom', required=True)
+    
+    user_ids = fields.Many2many('res.users', string='Users')
+    active = fields.Boolean('Active', default=True)
+    user_count = fields.Integer(compute='_compute_user_count', store=True)
+    
+    def add_users(self, user_ids, reason=None):
+        """Add users to the group"""
+        users = self.env['res.users'].browse(user_ids)
+        new_users = users.filtered(lambda u: u not in self.user_ids)
+        if new_users:
+            self.user_ids = [(4, user_id) for user_id in new_users.ids]
+            self._log_group_change('add_users', new_users, reason)
+        return True
     
     @api.model
-    def search_my_work(self):
-        """Find all records related to current user"""
-        domain = [
-            '|', '|', '|',
-            ('owner_id', '=', self.env.user.id),
-            ('co_owner_ids', 'in', self.env.user.id),
-            ('assigned_user_ids', 'in', self.env.user.id),
-            ('responsible_user_ids', 'in', self.env.user.id)
-        ]
-        return self.search(domain)
+    def create_project_team_group(self, project_name, user_ids):
+        """Create a project team access group"""
+        return self.create({
+            'name': f"Project Team - {project_name}",
+            'description': f"Access group for {project_name} project team members",
+            'group_type': 'project',
+            'user_ids': [(6, 0, user_ids)] if user_ids else [],
+        })
 ```
 
-## 🧪 Testing
+## 🔗 Advanced Integration Patterns
 
-### Unit Test Examples
+### Multi-Level Access Control
+```python
+class ProjectDocument(models.Model):
+    _name = 'project.document'
+    _inherit = ['tk.ownable.mixin', 'tk.accessible.mixin', 'tk.accessible.group.mixin']
+    
+    classification = fields.Selection([
+        ('public', 'Public'),
+        ('internal', 'Internal Use'),
+        ('confidential', 'Confidential'),
+        ('secret', 'Secret')
+    ])
+    
+    @api.model
+    def create(self, vals):
+        """Auto-setup access based on classification"""
+        record = super().create(vals)
+        record._setup_classification_access()
+        return record
+    
+    def _setup_classification_access(self):
+        """Setup access control based on document classification"""
+        if self.classification == 'public':
+            self.set_access_level('public', reason="Public document")
+        elif self.classification == 'internal':
+            self.set_access_level('internal', reason="Internal document")
+        elif self.classification == 'confidential':
+            self.set_access_level('restricted', reason="Confidential document")
+            # Create confidential access group
+            if hasattr(self, 'department_id') and self.department_id:
+                dept_group = self.env['tk.accessible.group'].create_department_group(
+                    self.department_id.name,
+                    self.department_id.member_ids.ids
+                )
+                self.grant_access_to_custom_group(dept_group.id, reason="Department confidential access")
+        elif self.classification == 'secret':
+            self.set_access_level('private', reason="Secret document")
+            # Only security cleared personnel
+            security_users = self.env['res.users'].search([('security_clearance', '=', 'secret')])
+            self.bulk_grant_access_to_users(security_users.ids, reason="Security clearance required")
+```
+
+### Dynamic Access Groups
+```python
+class ProjectTask(models.Model):
+    _name = 'project.task'
+    _inherit = ['tk.ownable.mixin', 'tk.accessible.mixin', 'tk.responsible.mixin']
+    
+    def action_start_task(self):
+        """Create dynamic access group when task starts"""
+        super().action_start_task()
+        
+        # Create task team group
+        team_users = self.responsible_user_ids | self.assigned_user_ids
+        if team_users:
+            task_group = self.create_and_assign_custom_group(
+                group_name=f"Task Team - {self.name}",
+                user_ids=team_users.ids,
+                group_type='project',
+                reason="Task team collaboration"
+            )
+            
+            # Set restricted access
+            self.set_access_level('restricted', reason="Active task - team only")
+            
+    def action_complete_task(self):
+        """Update access when task is completed"""
+        super().action_complete_task()
+        
+        # Archive task groups and set internal access
+        for group in self.custom_access_group_ids:
+            if 'Task Team' in group.name:
+                group.active = False
+        
+        self.set_access_level('internal', reason="Task completed")
+```
+
+### Wizard Integration
+```python
+class CustomAccessWizard(models.TransientModel):
+    _name = 'custom.access.wizard'
+    _description = 'Custom Access Management'
+    
+    def action_setup_project_access(self):
+        """Setup comprehensive project access"""
+        active_ids = self.env.context.get('active_ids', [])
+        records = self.env[self.env.context.get('active_model')].browse(active_ids)
+        
+        for record in records:
+            # Create project team group
+            team_group = self.env['tk.accessible.group'].create({
+                'name': f"Project Team - {record.name}",
+                'group_type': 'project',
+                'user_ids': [(6, 0, self.team_member_ids.ids)]
+            })
+            
+            # Create stakeholder group
+            stakeholder_group = self.env['tk.accessible.group'].create({
+                'name': f"Project Stakeholders - {record.name}",
+                'group_type': 'custom',
+                'user_ids': [(6, 0, self.stakeholder_ids.ids)]
+            })
+            
+            # Setup access
+            record.set_access_level('restricted', reason="Project access setup")
+            record.grant_access_to_custom_group(team_group.id, reason="Team collaboration")
+            record.grant_access_to_custom_group(stakeholder_group.id, reason="Stakeholder visibility")
+            
+            # Set access duration
+            if self.project_end_date:
+                record.set_access_duration(
+                    end_date=self.project_end_date,
+                    reason="Project timeline"
+                )
+```
+
+## 🧪 Testing Patterns
+
+### Access Control Testing
 ```python
 from odoo.tests.common import TransactionCase
 from odoo.exceptions import AccessError, ValidationError
 
-class TestToolkitMixins(TransactionCase):
+class TestAccessControl(TransactionCase):
     
     def setUp(self):
         super().setUp()
-        self.user1 = self.env['res.users'].create({
-            'name': 'Test User 1',
-            'login': 'testuser1'
-        })
-        self.user2 = self.env['res.users'].create({
-            'name': 'Test User 2', 
-            'login': 'testuser2'
+        self.test_model = self.env['test.model'].create({'name': 'Test Record'})
+        self.user1 = self.env.ref('base.user_demo')
+        self.user2 = self.env.ref('base.user_admin')
+        self.group = self.env.ref('base.group_user')
+    
+    def test_access_level_public(self):
+        """Test public access level"""
+        self.test_model.set_access_level('public')
+        self.assertTrue(self.test_model._check_user_access(self.user1))
+        self.assertTrue(self.test_model._check_user_access(self.user2))
+    
+    def test_access_level_restricted(self):
+        """Test restricted access level"""
+        self.test_model.set_access_level('restricted')
+        
+        # No access by default
+        self.assertFalse(self.test_model._check_user_access(self.user1))
+        
+        # Grant access to user
+        self.test_model.grant_access_to_user(self.user1.id)
+        self.assertTrue(self.test_model._check_user_access(self.user1))
+        
+        # Still no access for other user
+        self.assertFalse(self.test_model._check_user_access(self.user2))
+    
+    def test_custom_group_access(self):
+        """Test custom group access"""
+        # Create custom group
+        custom_group = self.env['tk.accessible.group'].create({
+            'name': 'Test Group',
+            'group_type': 'custom',
+            'user_ids': [(6, 0, [self.user1.id])]
         })
         
-    def test_ownership_transfer(self):
-        """Test ownership transfer functionality"""
-        record = self.env['your.model'].create({
-            'name': 'Test Record',
-            'owner_id': self.user1.id
-        })
+        # Set restricted access and grant to group
+        self.test_model.set_access_level('restricted')
+        self.test_model.grant_access_to_custom_group(custom_group.id)
         
-        # Test transfer
-        record.with_user(self.user1).transfer_ownership(
-            self.user2.id, 
-            reason="Test transfer"
+        # User in group should have access
+        self.assertTrue(self.test_model._check_user_access(self.user1))
+        # User not in group should not have access
+        self.assertFalse(self.test_model._check_user_access(self.user2))
+    
+    def test_access_expiry(self):
+        """Test access expiry functionality"""
+        from datetime import timedelta
+        
+        # Set access with past end date
+        past_date = fields.Datetime.now() - timedelta(days=1)
+        self.test_model.grant_access_to_user(
+            self.user1.id,
+            end_date=past_date
         )
         
-        self.assertEqual(record.owner_id, self.user2)
-        self.assertEqual(record.previous_owner_id, self.user1)
-        
-    def test_assignment_permissions(self):
-        """Test assignment permission logic"""
-        record = self.env['your.model'].create({
-            'name': 'Test Record',
-            'owner_id': self.user1.id
-        })
-        
-        # Owner should be able to assign
-        self.assertTrue(record.with_user(self.user1).can_assign)
-        
-        # Non-owner should not
-        self.assertFalse(record.with_user(self.user2).can_assign)
-```
-
-## 🔧 Performance Optimization
-
-### Efficient Queries
-```python
-# Good: Use computed stored fields
-@api.depends('assigned_user_ids')
-def _compute_assigned_user_count(self):
-    for record in self:
-        record.assigned_user_count = len(record.assigned_user_ids)
-
-# Good: Batch operations
-records = self.env['your.model'].search([])
-records.assign_to_users([user.id], reason="Batch assignment")
-
-# Avoid: N+1 queries in loops
-for record in records:
-    record.assign_to_users([user.id])  # Bad - creates many queries
-```
-
-### Indexing for Performance
-```python
-# Add custom indexes in your model
-class CustomModel(models.Model):
-    _name = 'custom.model'
-    _inherit = ['tk.ownable.mixin']
+        # Access should be expired
+        self.assertTrue(self.test_model.is_access_expired)
+        self.assertFalse(self.test_model._check_user_access(self.user1))
     
-    def init(self):
-        # Add database indexes for better performance
-        tools.create_index(self._cr, 'custom_model_owner_state_idx', 
-                          self._table, ['owner_id', 'state'])
-```
-
-## 🚀 Deployment Considerations
-
-### Migration Scripts
-```python
-def migrate(cr, version):
-    """Migration script for existing data"""
-    if not version:
-        return
+    def test_bulk_operations(self):
+        """Test bulk access operations"""
+        # Create multiple records
+        records = self.env['test.model'].create([
+            {'name': 'Record 1'},
+            {'name': 'Record 2'},
+            {'name': 'Record 3'}
+        ])
         
-    # Migrate existing ownership data
-    cr.execute("""
-        UPDATE your_table 
-        SET owner_id = old_owner_field 
-        WHERE old_owner_field IS NOT NULL
-    """)
-    
-    # Set default access levels
-    cr.execute("""
-        UPDATE your_table 
-        SET access_level = 'internal' 
-        WHERE access_level IS NULL
-    """)
+        # Bulk grant access
+        user_ids = [self.user1.id, self.user2.id]
+        for record in records:
+            record.set_access_level('restricted')
+            record.bulk_grant_access_to_users(user_ids, reason="Bulk test")
+        
+        # Verify all records have access for both users
+        for record in records:
+            self.assertTrue(record._check_user_access(self.user1))
+            self.assertTrue(record._check_user_access(self.user2))
 ```
 
-### Configuration Management
-```python
-# config/settings.py
-class ComprehensiveToolkitSettings(models.TransientModel):
-    _inherit = 'res.config.settings'
-    
-    default_access_level = fields.Selection([...], 
-                                          string="Default Access Level")
-    auto_assign_ownership = fields.Boolean("Auto-assign Ownership")
-    
-    def set_values(self):
-        super().set_values()
-        params = self.env['ir.config_parameter'].sudo()
-        params.set_param('toolkit.default_access_level', self.default_access_level)
-        params.set_param('toolkit.auto_assign_ownership', self.auto_assign_ownership)
-```
-
-## 📚 Best Practices
-
-### Code Organization
-- Keep mixin-specific logic in separate methods
-- Use descriptive method names with toolkit prefixes
-- Document custom overrides clearly
-- Follow Odoo coding standards
-
-### Performance Guidelines
-- Use stored computed fields for frequently accessed data
-- Implement efficient search domains
-- Batch operations when possible
-- Add appropriate database indexes
-
-### Security Considerations
-- Always validate user permissions in custom methods
-- Use sudo() carefully and document security implications
-- Implement proper access controls for sensitive operations
-- Regular security audits of access permissions
-
----
-
-**Next**: Check out the [API Reference](api-reference.md) for complete method documentation and the [Examples](examples.md) for more practical implementation patterns.
+This completes the comprehensive developer guide with detailed implementation patterns, code examples, and testing strategies for the accessible functionality.

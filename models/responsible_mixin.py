@@ -24,13 +24,6 @@ class ResponsibleMixin(models.AbstractModel):
         tracking=True,
         help="Users with secondary responsibility for this record"
     )
-    responsibility_type = fields.Selection([
-        ('primary', 'Primary Responsibility'),
-        ('secondary', 'Secondary Responsibility'),
-        ('backup', 'Backup Responsibility'),
-        ('temporary', 'Temporary Responsibility')
-    ], string='Responsibility Type', default='primary', tracking=True)
-
     responsibility_start_date = fields.Datetime(
         string='Responsibility Start Date',
         default=fields.Datetime.now,
@@ -161,8 +154,7 @@ class ResponsibleMixin(models.AbstractModel):
                 (is_responsible or has_ownership or has_access or self.env.user.has_group('base.group_system'))
             )
 
-    def assign_responsibility(self, user_ids, responsibility_type='primary',
-                            end_date=None, description=None, reason=None):
+    def assign_responsibility(self, user_ids, end_date=None, description=None, reason=None):
         """Assign responsibility to users"""
         if not self.can_delegate and not self.env.user.has_group('base.group_system'):
             raise AccessError(_("You don't have permission to assign responsibility for this record."))
@@ -183,7 +175,6 @@ class ResponsibleMixin(models.AbstractModel):
         # Assign responsibility
         vals = {
             'responsible_user_ids': [(6, 0, user_ids)],
-            'responsibility_type': responsibility_type,
             'responsibility_start_date': fields.Datetime.now(),
             'responsibility_delegated_by': self.env.user.id
         }
@@ -199,18 +190,64 @@ class ResponsibleMixin(models.AbstractModel):
 
         return True
 
-    def delegate_responsibility(self, user_ids, reason=None):
-        """Delegate responsibility to other users"""
-        if not self.can_delegate:
-            raise AccessError(_("You don't have permission to delegate responsibility."))
+    def assign_secondary_responsibility(self, user_ids, reason=None):
+        """Assign secondary responsibility to users"""
+        if not self.can_delegate and not self.env.user.has_group('base.group_system'):
+            raise AccessError(_("You don't have permission to assign secondary responsibility for this record."))
+
+        if not user_ids:
+            raise ValidationError(_("At least one user must be specified for secondary responsibility assignment."))
+
+        # Ensure user_ids is a list
+        if not isinstance(user_ids, list):
+            user_ids = [user_ids] if user_ids else []
 
         users = self.env['res.users'].browse(user_ids)
         if not all(user.exists() for user in users):
-            raise ValidationError(_("One or more invalid users specified for delegation."))
+            raise ValidationError(_("One or more invalid users specified for secondary responsibility assignment."))
+
+        old_secondary = self.secondary_responsible_ids
+
+        # Assign secondary responsibility
+        vals = {
+            'secondary_responsible_ids': [(6, 0, user_ids)],
+        }
+
+        self.write(vals)
+
+        # Log the assignment
+        self._log_responsibility_change('assign_secondary_multiple', old_secondary, users, reason)
+
+        return True
+
+    def delegate_responsibility(self, user_ids, reason=None):
+        """Delegate responsibility to other users"""
+        return self._change_responsibility(user_ids, 'delegate_multiple', reason)
+
+    def transfer_responsibility(self, user_ids, reason=None):
+        """Transfer responsibility to other users (alias for delegate_responsibility)"""
+        return self._change_responsibility(user_ids, 'transfer_multiple', reason)
+
+    def delegate_secondary_responsibility(self, user_ids, reason=None):
+        """Delegate secondary responsibility to other users"""
+        return self._change_secondary_responsibility(user_ids, 'delegate_secondary_multiple', reason)
+
+    def transfer_secondary_responsibility(self, user_ids, reason=None):
+        """Transfer secondary responsibility to other users (alias for delegate_secondary_responsibility)"""
+        return self._change_secondary_responsibility(user_ids, 'transfer_secondary_multiple', reason)
+
+    def _change_responsibility(self, user_ids, action_type, reason=None):
+        """Internal method to handle responsibility changes"""
+        if not self.can_delegate:
+            raise AccessError(_("You don't have permission to change responsibility."))
+
+        users = self.env['res.users'].browse(user_ids)
+        if not all(user.exists() for user in users):
+            raise ValidationError(_("One or more invalid users specified for responsibility change."))
 
         old_responsible = self.responsible_user_ids
 
-        # Delegate responsibility
+        # Change responsibility
         vals = {
             'responsible_user_ids': [(6, 0, user_ids)],
             'responsibility_delegated_by': self.env.user.id,
@@ -219,8 +256,31 @@ class ResponsibleMixin(models.AbstractModel):
 
         self.write(vals)
 
-        # Log the delegation
-        self._log_responsibility_change('delegate_multiple', old_responsible, users, reason)
+        # Log the change
+        self._log_responsibility_change(action_type, old_responsible, users, reason)
+
+        return True
+
+    def _change_secondary_responsibility(self, user_ids, action_type, reason=None):
+        """Internal method to handle secondary responsibility changes"""
+        if not self.can_delegate:
+            raise AccessError(_("You don't have permission to change secondary responsibility."))
+
+        users = self.env['res.users'].browse(user_ids)
+        if not all(user.exists() for user in users):
+            raise ValidationError(_("One or more invalid users specified for secondary responsibility change."))
+
+        old_secondary = self.secondary_responsible_ids
+
+        # Change secondary responsibility
+        vals = {
+            'secondary_responsible_ids': [(6, 0, user_ids)],
+        }
+
+        self.write(vals)
+
+        # Log the change
+        self._log_responsibility_change(action_type, old_secondary, users, reason)
 
         return True
 
@@ -264,31 +324,6 @@ class ResponsibleMixin(models.AbstractModel):
 
         return True
 
-    def transfer_responsibility(self, user_ids, reason=None):
-        """Transfer responsibility to other users"""
-        if not self.can_delegate:
-            raise AccessError(_("You don't have permission to transfer responsibility."))
-
-        users = self.env['res.users'].browse(user_ids)
-        if not all(user.exists() for user in users):
-            raise ValidationError(_("One or more invalid users specified for transfer."))
-
-        old_responsible = self.responsible_user_ids
-
-        # Transfer responsibility
-        vals = {
-            'responsible_user_ids': [(6, 0, user_ids)],
-            'responsibility_delegated_by': self.env.user.id,
-            'responsibility_start_date': fields.Datetime.now()
-        }
-
-        self.write(vals)
-
-        # Log the transfer
-        self._log_responsibility_change('transfer_multiple', old_responsible, users, reason)
-
-        return True
-
     def revoke_all_responsibility(self, reason=None):
         """Revoke all responsibility"""
         if not self.can_delegate:
@@ -319,19 +354,21 @@ class ResponsibleMixin(models.AbstractModel):
             raise ValidationError(_("Invalid escalation user specified."))
 
         old_responsible = self.responsible_user_ids
+        old_secondary = self.secondary_responsible_ids
 
-        # Escalate responsibility
+        # Escalate responsibility - clear both primary and secondary responsibility
         vals = {
             'responsible_user_ids': [(6, 0, [escalation_user_id])],
+            'secondary_responsible_ids': [(5, 0, 0)],  # Clear secondary responsibility
             'responsibility_delegated_by': self.env.user.id,
             'responsibility_start_date': fields.Datetime.now(),
-            'responsibility_type': 'primary'
         }
 
         self.write(vals)
 
-        # Log the escalation
-        self._log_responsibility_change('escalate', old_responsible, escalation_user, reason)
+        # Log the escalation (include both primary and secondary in the log)
+        all_old_users = old_responsible | old_secondary
+        self._log_responsibility_change('escalate', all_old_users, escalation_user, reason)
 
         return True
 
@@ -377,16 +414,18 @@ class ResponsibleMixin(models.AbstractModel):
         # This is a complex computed field, return basic domain
         if operator == '=' and value:
             # Records where user has some level of access
-            domain = []
             if self.env.user.has_group('base.group_system'):
                 domain = [('id', '!=', False)]  # System admin can delegate any record
             else:
-                # Basic users can delegate records they're responsible for or own
-                domain = ['|',
-                         ('responsible_user_ids', 'in', [self.env.user.id]),
-                         '|', ('secondary_responsible_ids', 'in', [self.env.user.id]),
-                         '|', ('owner_id', '=', self.env.user.id),
-                         ('co_owner_ids', 'in', [self.env.user.id])]
+                fields = ['responsible_user_ids', 'secondary_responsible_ids']
+                if hasattr(self, 'owner_id'):
+                    fields += ['owner_id', 'co_owner_ids']
+
+                domain = ['|'] * (len(fields) - 1)  # Create OR conditions
+                user_id = self.env.user.id
+                for field in fields:
+                    domain.append((field, '=', user_id))
+
             return domain
         elif operator == '=' and not value:
             # Records where user cannot delegate (complex logic, return restrictive domain)

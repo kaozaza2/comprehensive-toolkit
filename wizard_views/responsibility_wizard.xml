@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Responsibility Assignment Wizard -->
+    <record id="view_responsibility_assign_wizard_form" model="ir.ui.view">
+        <field name="name">responsibility.assign.wizard.form</field>
+        <field name="model">tk.responsibility.assign.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Assign Responsibility">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="record_count" readonly="1"/>
+                            <field name="responsible_user_ids" widget="many2many_tags"/>
+                            <field name="is_secondary" groups="base.group_system"/>
+                        </group>
+                        <group>
+                            <field name="responsibility_end_date"/>
+                            <field name="reason"/>
+                        </group>
+                    </group>
+                    <group string="Description">
+                        <field name="responsibility_description" nolabel="1"/>
+                    </group>
+                </sheet>
+                <footer>
+                    <button name="action_assign_responsibility" string="Assign" type="object" class="btn-primary"/>
+                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <!-- Responsibility Transfer Wizard -->
+    <record id="view_responsibility_transfer_wizard_form" model="ir.ui.view">
+        <field name="name">responsibility.transfer.wizard.form</field>
+        <field name="model">tk.responsibility.transfer.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Transfer Responsibility">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="record_count" readonly="1"/>
+                            <field name="transfer_type"/>
+                            <field name="target_user_ids" widget="many2many_tags"/>
+                        </group>
+                        <group>
+                            <field name="is_secondary" attrs="{'invisible': [('transfer_type', '=', 'escalate')]}"/>
+                            <field name="reason"/>
+                        </group>
+                    </group>
+                    <group string="Current Responsibility" col="2">
+                        <field name="current_responsible_info" readonly="1" nolabel="1" widget="html"/>
+                    </group>
+                </sheet>
+                <footer>
+                    <button name="action_transfer_responsibility" string="Transfer" type="object" class="btn-primary"/>
+                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <!-- Responsibility Revocation Wizard -->
+    <record id="view_responsibility_revoke_wizard_form" model="ir.ui.view">
+        <field name="name">responsibility.revoke.wizard.form</field>
+        <field name="model">tk.responsibility.revoke.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Revoke Responsibility">
+                <sheet>
+                    <div class="alert alert-warning" role="alert">
+                        <strong>Warning:</strong>
+                        This action will remove all responsibility assignments from the selected records.
+                    </div>
+                    <group>
+                        <field name="record_count" readonly="1"/>
+                        <field name="revoke_type"/>
+                        <field name="reason" required="1"/>
+                    </group>
+                    <group string="Current Assignments" col="1">
+                        <field name="current_assignments_info" readonly="1" nolabel="1" widget="html"/>
+                    </group>
+                </sheet>
+                <footer>
+                    <button name="action_revoke_responsibility" string="Revoke" type="object" class="btn-danger"/>
+                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <!-- Bulk Responsibility Operations Wizard -->
+    <record id="view_bulk_responsibility_wizard_form" model="ir.ui.view">
+        <field name="name">bulk.responsibility.wizard.form</field>
+        <field name="model">tk.bulk.responsibility.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Bulk Responsibility Operations">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="operation_type"/>
+                            <field name="record_count" readonly="1"/>
+                            <field name="target_user_ids" widget="many2many_tags"
+                                   attrs="{'required': [('operation_type', 'in', ['assign', 'transfer', 'escalate'])],
+                                               'invisible': [('operation_type', '=', 'revoke')]}"/>
+                        </group>
+                        <group>
+                            <field name="is_secondary"
+                                   attrs="{'invisible': [('operation_type', 'in', ['revoke', 'escalate'])]}"/>
+                            <field name="responsibility_end_date"
+                                   attrs="{'invisible': [('operation_type', '!=', 'assign')]}"/>
+                            <field name="reason"/>
+                        </group>
+                    </group>
+                    <group string="Description" attrs="{'invisible': [('operation_type', '!=', 'assign')]}">
+                        <field name="responsibility_description" nolabel="1"/>
+                    </group>
+                    <group string="Summary" col="1">
+                        <field name="operation_summary" readonly="1" nolabel="1" widget="html"/>
+                    </group>
+                </sheet>
+                <footer>
+                    <button name="action_execute_operation" string="Execute" type="object" class="btn-primary"/>
+                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <!-- Responsibility Actions for Wizards -->
+    <record id="action_responsibility_assign_wizard" model="ir.actions.act_window">
+        <field name="name">Assign Responsibility</field>
+        <field name="res_model">tk.responsibility.assign.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+        <field name="binding_model_id" ref="base.model_ir_model"/>
+    </record>
+
+    <record id="action_responsibility_transfer_wizard" model="ir.actions.act_window">
+        <field name="name">Transfer Responsibility</field>
+        <field name="res_model">tk.responsibility.transfer.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+        <field name="binding_model_id" ref="base.model_ir_model"/>
+    </record>
+
+    <record id="action_responsibility_revoke_wizard" model="ir.actions.act_window">
+        <field name="name">Revoke Responsibility</field>
+        <field name="res_model">tk.responsibility.revoke.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+        <field name="binding_model_id" ref="base.model_ir_model"/>
+    </record>
+
+    <record id="action_bulk_responsibility_wizard" model="ir.actions.act_window">
+        <field name="name">Bulk Responsibility Operations</field>
+        <field name="res_model">tk.bulk.responsibility.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+        <field name="binding_model_id" ref="base.model_ir_model"/>
+    </record>
+</odoo>

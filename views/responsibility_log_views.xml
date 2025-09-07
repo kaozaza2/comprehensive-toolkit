@@ -8,7 +8,10 @@
             <field name="arch" type="xml">
                 <tree string="Responsibility Logs" default_order="date desc">
                     <field name="date"/>
-                    <field name="action" decoration-info="action in ['assign', 'delegate', 'assign_multiple', 'delegate_multiple', 'add_responsible']" decoration-warning="action in ['transfer', 'escalate', 'transfer_multiple']" decoration-danger="action in ['revoke', 'revoke_all', 'remove_responsible']"/>
+                    <field name="action"
+                           decoration-info="action in ['assign', 'delegate', 'assign_multiple', 'delegate_multiple', 'add_responsible', 'assign_secondary', 'assign_secondary_multiple', 'add_secondary']"
+                           decoration-warning="action in ['transfer', 'escalate', 'transfer_multiple', 'transfer_secondary_multiple', 'delegate_secondary_multiple']"
+                           decoration-danger="action in ['revoke', 'revoke_all', 'remove_responsible', 'remove_secondary', 'revoke_primary', 'revoke_secondary']"/>
                     <field name="model_name"/>
                     <field name="record_reference"/>
                     <field name="old_responsible_user_id"/>
@@ -36,6 +39,7 @@
                                 <field name="model_name"/>
                                 <field name="res_id"/>
                                 <field name="record_reference"/>
+                                <button name="open_record" type="object" string="Open Record" class="btn-primary" attrs="{'invisible': [('model_name', '=', False)]}"/>
                             </group>
                             <group string="Change Details">
                                 <field name="action"/>
@@ -48,9 +52,9 @@
                                 <field name="old_responsible_user_id"/>
                                 <field name="new_responsible_user_id"/>
                             </group>
-                        </group>
-                        <group string="Multiple Users Information" attrs="{'invisible': [('extra_info', '=', False)]}">
-                            <field name="extra_info" nolabel="1"/>
+                            <group string="Additional Information">
+                                <field name="extra_info" widget="html"/>
+                            </group>
                         </group>
                         <group string="Reason">
                             <field name="reason" nolabel="1"/>
@@ -66,27 +70,31 @@
             <field name="model">tk.responsibility.log</field>
             <field name="arch" type="xml">
                 <search string="Search Responsibility Logs">
-                    <field name="model_name"/>
                     <field name="action"/>
+                    <field name="model_name"/>
                     <field name="old_responsible_user_id"/>
                     <field name="new_responsible_user_id"/>
                     <field name="user_id"/>
                     <field name="reason"/>
-                    <field name="extra_info"/>
-                    <filter string="Single Assignments" name="single_assignments" domain="[('action', '=', 'assign')]"/>
-                    <filter string="Multiple Assignments" name="multiple_assignments" domain="[('action', '=', 'assign_multiple')]"/>
-                    <filter string="Delegations" name="delegations" domain="[('action', 'in', ['delegate', 'delegate_multiple'])]"/>
-                    <filter string="Transfers" name="transfers" domain="[('action', 'in', ['transfer', 'transfer_multiple'])]"/>
-                    <filter string="Add/Remove Responsible" name="add_remove" domain="[('action', 'in', ['add_responsible', 'remove_responsible'])]"/>
-                    <filter string="Escalations" name="escalations" domain="[('action', '=', 'escalate')]"/>
-                    <filter string="Revocations" name="revocations" domain="[('action', 'in', ['revoke', 'revoke_all'])]"/>
                     <separator/>
-                    <filter string="Today" name="today" domain="[('date', '&gt;=', datetime.datetime.combine(context_today(), datetime.time(0,0,0))), ('date', '&lt;=', datetime.datetime.combine(context_today(), datetime.time(23,59,59)))]"/>
+                    <filter name="today" string="Today" domain="[('date', '>=', context_today().strftime('%Y-%m-%d 00:00:00')), ('date', '<=', context_today().strftime('%Y-%m-%d 23:59:59'))]"/>
+                    <filter name="this_week" string="This Week" domain="[('date', '>=', (context_today() - datetime.timedelta(days=context_today().weekday())).strftime('%Y-%m-%d')), ('date', '<=', (context_today() + datetime.timedelta(days=6-context_today().weekday())).strftime('%Y-%m-%d'))]"/>
+                    <filter name="this_month" string="This Month" domain="[('date', '>=', context_today().strftime('%Y-%m-01')), ('date', '<=', (context_today().replace(day=1) + datetime.timedelta(days=32)).replace(day=1) - datetime.timedelta(days=1))]"/>
+                    <separator/>
+                    <filter name="assignments" string="Assignments" domain="[('action', 'in', ['assign', 'assign_multiple', 'assign_secondary', 'assign_secondary_multiple', 'add_responsible', 'add_secondary'])]"/>
+                    <filter name="transfers" string="Transfers" domain="[('action', 'in', ['transfer', 'transfer_multiple', 'delegate', 'delegate_multiple', 'transfer_secondary_multiple', 'delegate_secondary_multiple'])]"/>
+                    <filter name="escalations" string="Escalations" domain="[('action', '=', 'escalate')]"/>
+                    <filter name="revocations" string="Revocations" domain="[('action', 'in', ['revoke', 'revoke_all', 'remove_responsible', 'remove_secondary', 'revoke_primary', 'revoke_secondary'])]"/>
+                    <separator/>
+                    <filter name="my_actions" string="My Actions" domain="[('user_id', '=', uid)]"/>
+                    <separator/>
                     <group expand="0" string="Group By">
-                        <filter string="Action" name="group_action" context="{'group_by': 'action'}"/>
-                        <filter string="Model" name="group_model" context="{'group_by': 'model_name'}"/>
-                        <filter string="Changed By" name="group_user" context="{'group_by': 'user_id'}"/>
-                        <filter string="Date" name="group_date" context="{'group_by': 'date:day'}"/>
+                        <filter name="group_action" string="Action" context="{'group_by': 'action'}"/>
+                        <filter name="group_model" string="Model" context="{'group_by': 'model_name'}"/>
+                        <filter name="group_user" string="Changed By" context="{'group_by': 'user_id'}"/>
+                        <filter name="group_date" string="Date" context="{'group_by': 'date:day'}"/>
+                        <filter name="group_old_user" string="Old Responsible" context="{'group_by': 'old_responsible_user_id'}"/>
+                        <filter name="group_new_user" string="New Responsible" context="{'group_by': 'new_responsible_user_id'}"/>
                     </group>
                 </search>
             </field>
@@ -97,7 +105,24 @@
             <field name="name">Responsibility Logs</field>
             <field name="res_model">tk.responsibility.log</field>
             <field name="view_mode">tree,form</field>
+            <field name="context">{'search_default_this_month': 1}</field>
             <field name="search_view_id" ref="view_responsibility_log_search"/>
+            <field name="help" type="html">
+                <p class="o_view_nocontent_smiling_face">
+                    No responsibility logs found!
+                </p>
+                <p>
+                    Responsibility logs track all changes to record responsibility assignments.
+                    This includes assignments, transfers, delegations, escalations, and revocations.
+                </p>
+            </field>
         </record>
+
+        <!-- Menu Item -->
+        <menuitem id="menu_responsibility_log"
+                  name="Responsibility Logs"
+                  parent="menu_toolkit_logs"
+                  action="action_responsibility_log"
+                  sequence="20"/>
     </data>
 </odoo>

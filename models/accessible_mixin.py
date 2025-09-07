@@ -447,6 +447,7 @@ class AccessibleMixin(models.AbstractModel):
             'action': action,
             'target_user_id': target_user_id,
             'target_group_id': target_group_id,
+            'target_custom_group_id': target_custom_group_id,
             'reason': reason or '',
             'extra_info': extra_info or '',
             'user_id': self.env.user.id,

@@ -1,62 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- Bulk Assignment Wizard -->
-    <record id="view_bulk_assign_wizard_form" model="ir.ui.view">
-        <field name="name">tk.bulk.assign.wizard.form</field>
-        <field name="model">tk.bulk.assign.wizard</field>
-        <field name="arch" type="xml">
-            <form string="Bulk Assignment">
-                <group>
-                    <field name="model_name" invisible="True"/>
-                    <field name="record_ids" invisible="True"/>
-                    <field name="user_ids" widget="many2many_tags" required="1"/>
-                    <field name="assignment_deadline"/>
-                    <field name="assignment_priority"/>
-                </group>
-                <field name="assignment_description" placeholder="Assignment instructions..."/>
-                <field name="reason" placeholder="Reason for bulk assignment..."/>
-                <footer>
-                    <button name="action_assign" string="Assign" type="object" class="btn-primary"/>
-                    <button string="Cancel" class="btn-secondary" special="cancel"/>
-                </footer>
-            </form>
-        </field>
-    </record>
-
-    <record id="action_bulk_assign_wizard" model="ir.actions.act_window">
-        <field name="name">Bulk Assignment</field>
-        <field name="res_model">tk.bulk.assign.wizard</field>
-        <field name="view_mode">form</field>
-        <field name="target">new</field>
-    </record>
-
-    <!-- Bulk Ownership Transfer Wizard -->
-    <record id="view_bulk_ownership_wizard_form" model="ir.ui.view">
-        <field name="name">tk.bulk.ownership.wizard.form</field>
-        <field name="model">tk.bulk.ownership.wizard</field>
-        <field name="arch" type="xml">
-            <form string="Bulk Ownership Transfer">
-                <group>
-                    <field name="model_name" invisible="True"/>
-                    <field name="record_ids" invisible="True"/>
-                    <field name="new_owner_id" required="1"/>
-                </group>
-                <field name="reason" placeholder="Reason for ownership transfer..."/>
-                <footer>
-                    <button name="action_transfer" string="Transfer" type="object" class="btn-primary"/>
-                    <button string="Cancel" class="btn-secondary" special="cancel"/>
-                </footer>
-            </form>
-        </field>
-    </record>
-
-    <record id="action_bulk_ownership_wizard" model="ir.actions.act_window">
-        <field name="name">Bulk Ownership Transfer</field>
-        <field name="res_model">tk.bulk.ownership.wizard</field>
-        <field name="view_mode">form</field>
-        <field name="target">new</field>
-    </record>
-
     <!-- Bulk Access Control Wizard -->
     <record id="view_bulk_access_wizard_form" model="ir.ui.view">
         <field name="name">tk.bulk.access.wizard.form</field>
@@ -89,64 +32,6 @@
     <record id="action_bulk_access_wizard" model="ir.actions.act_window">
         <field name="name">Bulk Access Control</field>
         <field name="res_model">tk.bulk.access.wizard</field>
-        <field name="view_mode">form</field>
-        <field name="target">new</field>
-    </record>
-
-    <!-- Transfer Ownership Wizard -->
-    <record id="view_transfer_ownership_wizard_form" model="ir.ui.view">
-        <field name="name">tk.transfer.ownership.wizard.form</field>
-        <field name="model">tk.transfer.ownership.wizard</field>
-        <field name="arch" type="xml">
-            <form string="Transfer Ownership">
-                <group>
-                    <field name="model_name" invisible="True"/>
-                    <field name="record_id" invisible="True"/>
-                    <field name="current_owner_id" readonly="1"/>
-                    <field name="new_owner_id" required="1"/>
-                </group>
-                <field name="reason" placeholder="Reason for ownership transfer..."/>
-                <footer>
-                    <button name="action_transfer" string="Transfer" type="object" class="btn-primary"/>
-                    <button string="Cancel" class="btn-secondary" special="cancel"/>
-                </footer>
-            </form>
-        </field>
-    </record>
-
-    <record id="action_transfer_ownership_wizard" model="ir.actions.act_window">
-        <field name="name">Transfer Ownership</field>
-        <field name="res_model">tk.transfer.ownership.wizard</field>
-        <field name="view_mode">form</field>
-        <field name="target">new</field>
-    </record>
-
-    <!-- Delegate Responsibility Wizard -->
-    <record id="view_delegate_responsibility_wizard_form" model="ir.ui.view">
-        <field name="name">tk.delegate.responsibility.wizard.form</field>
-        <field name="model">tk.delegate.responsibility.wizard</field>
-        <field name="arch" type="xml">
-            <form string="Delegate Responsibility">
-                <group>
-                    <field name="model_name" invisible="True"/>
-                    <field name="record_id" invisible="True"/>
-                    <field name="user_ids" widget="many2many_tags" required="1"/>
-                    <field name="responsibility_type"/>
-                    <field name="end_date"/>
-                </group>
-                <field name="description" placeholder="Responsibility description..."/>
-                <field name="reason" placeholder="Reason for delegation..."/>
-                <footer>
-                    <button name="action_delegate" string="Delegate" type="object" class="btn-primary"/>
-                    <button string="Cancel" class="btn-secondary" special="cancel"/>
-                </footer>
-            </form>
-        </field>
-    </record>
-
-    <record id="action_delegate_responsibility_wizard" model="ir.actions.act_window">
-        <field name="name">Delegate Responsibility</field>
-        <field name="res_model">tk.delegate.responsibility.wizard</field>
         <field name="view_mode">form</field>
         <field name="target">new</field>
     </record>

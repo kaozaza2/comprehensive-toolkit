@@ -2,6 +2,157 @@ from odoo import models, fields, api, _
 from odoo.exceptions import ValidationError
 
 
+class BulkAccessWizard(models.TransientModel):
+    _name = 'tk.bulk.access.wizard'
+    _description = 'Bulk Access Control Wizard'
+
+    model_name = fields.Char(string='Model Name', required=True)
+    record_ids = fields.Text(string='Record IDs', required=True)
+    access_level = fields.Selection([
+        ('public', 'Public'),
+        ('internal', 'Internal'),
+        ('restricted', 'Restricted'),
+        ('private', 'Private')
+    ], string='Access Level', required=True)
+    allowed_user_ids = fields.Many2many('res.users', string='Allowed Users')
+    allowed_group_ids = fields.Many2many('res.groups', string='Allowed Groups')
+    custom_access_group_ids = fields.Many2many('tk.accessible.group', string='Allowed Custom Groups')
+    access_start_date = fields.Datetime(string='Access Start Date', help="Date from which access is granted")
+    access_end_date = fields.Datetime(string='Access End Date', help="Date until which access is granted")
+    reason = fields.Text(string='Reason')
+
+    def action_set_access(self):
+        """Bulk set access control for selected records"""
+        self.ensure_one()
+
+        # Parse record IDs
+        record_ids = eval(self.record_ids) if self.record_ids else []
+        if not record_ids:
+            raise ValidationError(_("No records selected for access control update."))
+
+        # Get the records
+        records = self.env[self.model_name].browse(record_ids)
+
+        # Update access control for each record
+        success_count = 0
+        error_records = []
+
+        for record in records:
+            try:
+                if hasattr(record, 'set_access_level'):
+                    record.set_access_level(self.access_level, reason=self.reason)
+
+                    # Set allowed users and groups if restricted
+                    if self.access_level in ['restricted', 'private']:
+                        if self.allowed_user_ids:
+                            record.bulk_grant_access_to_users(self.allowed_user_ids.ids, reason=self.reason)
+                        if self.allowed_group_ids:
+                            for group in self.allowed_group_ids:
+                                record.grant_access_to_group(group.id, reason=self.reason)
+                        if self.custom_access_group_ids:
+                            for access_group in self.custom_access_group_ids:
+                                record.grant_access_to_custom_group(access_group.id, reason=self.reason)
+
+                # Set access duration if specified
+                if hasattr(record, 'set_access_duration'):
+                    if self.access_start_date or self.access_end_date:
+                        record.set_access_duration(
+                            start_date=self.access_start_date,
+                            end_date=self.access_end_date,
+                            reason=self.reason
+                        )
+
+                    success_count += 1
+                else:
+                    error_records.append(record.display_name)
+            except Exception as e:
+                error_records.append(f"{record.display_name}: {str(e)}")
+
+        # Show result message
+        message = _("Successfully updated access control for %s records.") % success_count
+        if error_records:
+            message += _("\n\nErrors occurred for: %s") % ", ".join(error_records)
+
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': _('Bulk Access Control Update Complete'),
+                'message': message,
+                'type': 'success' if not error_records else 'warning',
+                'sticky': True,
+            }
+        }
+
+
+class ManageAccessWizard(models.TransientModel):
+    _name = 'tk.manage.access.wizard'
+    _description = 'Manage Access Wizard'
+
+    model_name = fields.Char(string='Model Name', required=True)
+    record_id = fields.Integer(string='Record ID', required=True)
+    access_level = fields.Selection([
+        ('public', 'Public'),
+        ('internal', 'Internal'),
+        ('restricted', 'Restricted'),
+        ('private', 'Private')
+    ], string='Access Level', required=True)
+    allowed_user_ids = fields.Many2many('res.users', string='Allowed Users')
+    allowed_group_ids = fields.Many2many('res.groups', string='Allowed Groups')
+    custom_access_group_ids = fields.Many2many('tk.accessible.group', string='Custom Access Groups')
+    access_start_date = fields.Datetime(string='Access Start Date', help="Date from which access is granted")
+    access_end_date = fields.Datetime(string='Access End Date', help="Date until which access is granted")
+    reason = fields.Text(string='Reason for Access Change')
+
+    def action_update_access(self):
+        """Update access control for the record"""
+        self.ensure_one()
+
+        # Get the record
+        record = self.env[self.model_name].browse(self.record_id)
+
+        if not record.exists():
+            raise ValidationError(_("Record not found."))
+
+        try:
+            if hasattr(record, 'set_access_level'):
+                record.set_access_level(self.access_level, reason=self.reason)
+
+                # Set allowed users and groups if restricted
+                if self.access_level in ['restricted', 'private']:
+                    if self.allowed_user_ids:
+                        record.bulk_grant_access_to_users(self.allowed_user_ids.ids, reason=self.reason)
+                    if self.allowed_group_ids:
+                        for group in self.allowed_group_ids:
+                            record.grant_access_to_group(group.id, reason=self.reason)
+                    if self.custom_access_group_ids:
+                        for access_group in self.custom_access_group_ids:
+                            record.grant_access_to_custom_group(access_group.id, reason=self.reason)
+
+                # Set access duration if specified
+                if hasattr(record, 'set_access_duration'):
+                    if self.access_start_date or self.access_end_date:
+                        record.set_access_duration(
+                            start_date=self.access_start_date,
+                            end_date=self.access_end_date,
+                            reason=self.reason
+                        )
+
+                return {
+                    'type': 'ir.actions.client',
+                    'tag': 'display_notification',
+                    'params': {
+                        'title': _('Access Updated'),
+                        'message': _('Access control successfully updated'),
+                        'type': 'success',
+                    }
+                }
+            else:
+                raise ValidationError(_("This record does not support access control management."))
+        except Exception as e:
+            raise ValidationError(_("Error updating access control: %s") % str(e))
+
+
 class AccessibleGroupWizard(models.TransientModel):
     _name = 'tk.accessible.group.wizard'
     _description = 'Add Custom Access Group Wizard'

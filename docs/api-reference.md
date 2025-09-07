@@ -26,29 +26,11 @@ Complete API documentation for all mixins, methods, and fields in the Comprehens
 
 #### Computed Fields
 - **`is_owned`** (`Boolean`): Whether record has an owner or co-owners
-  - Compute: `_compute_is_owned`
-  - Store: Yes
-  - Depends: `owner_id`, `co_owner_ids`
-
 - **`can_transfer`** (`Boolean`): Whether current user can transfer ownership
-  - Compute: `_compute_can_transfer`
-  - Depends: `owner_id`
-
 - **`can_release`** (`Boolean`): Whether current user can release ownership
-  - Compute: `_compute_can_release`
-  - Depends: `owner_id`
-
 - **`can_manage_co_owners`** (`Boolean`): Whether current user can manage co-owners
-  - Compute: `_compute_can_manage_co_owners`
-  - Depends: `owner_id`, `co_owner_ids`
-
 - **`co_owner_count`** (`Integer`): Number of co-owners
-  - Compute: `_compute_co_owner_count`
-  - Depends: `co_owner_ids`
-
 - **`is_owned_by_me`** (`Boolean`): Whether current user owns or co-owns record
-  - Compute: `_compute_is_owned_by_me`
-  - Depends: `owner_id`, `co_owner_ids`
 
 ### Methods
 
@@ -101,48 +83,114 @@ Add a co-owner to the record.
 
 **Returns:** `True` if successful
 
-**Raises:**
-- `AccessError`: If user lacks permission
-- `ValidationError`: If user is invalid or already a co-owner
-
 #### `remove_co_owner(user_id, reason=None)`
 Remove a co-owner from the record.
 
 **Parameters:**
-- `user_id` (int): ID of user to remove
-- `reason` (str, optional): Reason for removal
+- `user_id` (int): ID of user to remove as co-owner
+- `reason` (str, optional): Reason for removing co-owner
 
 **Returns:** `True` if successful
 
-#### `add_multiple_co_owners(user_ids, reason=None)`
-Add multiple co-owners at once.
+---
+
+## 🎯 Responsible Mixin (`tk.responsible.mixin`)
+
+### Fields
+
+#### Core Fields
+- **`responsible_user_ids`** (`Many2many`): Users responsible for this record
+- **`secondary_responsible_ids`** (`Many2many`): Users with secondary responsibility
+- **`responsibility_start_date`** (`Datetime`): When responsibility was assigned
+  - Default: Current datetime
+  - Help: "Date when responsibility was assigned"
+
+- **`responsibility_end_date`** (`Datetime`): When responsibility ends
+  - Help: "Date when responsibility ends (for temporary responsibilities)"
+
+- **`responsibility_delegated_by`** (`Many2one`): User who delegated responsibility
+  - Relation: `res.users`
+  - Readonly: Yes
+  - Help: "User who delegated this responsibility"
+
+- **`responsibility_description`** (`Text`): Description of responsibility
+  - Help: "Description of what this responsibility entails"
+
+#### Computed Fields
+- **`is_responsibility_active`** (`Boolean`): Whether responsibility is currently active
+- **`is_responsibility_expired`** (`Boolean`): Whether responsibility has expired
+- **`can_delegate`** (`Boolean`): Whether current user can delegate responsibility
+- **`responsibility_count`** (`Integer`): Number of responsible users
+- **`secondary_responsibility_count`** (`Integer`): Number of secondary responsible users
+
+### Methods
+
+#### `assign_responsibility(user_ids, end_date=None, description=None, reason=None)`
+Assign responsibility to users.
 
 **Parameters:**
-- `user_ids` (list): List of user IDs to add
-- `reason` (str, optional): Reason for adding co-owners
+- `user_ids` (list): List of user IDs to assign responsibility to
+- `end_date` (datetime, optional): When responsibility ends
+- `description` (str, optional): Description of the responsibility
+- `reason` (str, optional): Reason for assignment
 
 **Returns:** `True` if successful
 
-#### `remove_all_co_owners(reason=None)`
-Remove all co-owners from the record.
+**Raises:**
+- `AccessError`: If user lacks permission to assign
+- `ValidationError`: If no users specified or invalid users
+
+**Example:**
+```python
+record.assign_responsibility([user1.id, user2.id], 
+                           end_date=fields.Datetime.now() + timedelta(days=30),
+                           description="Review and approve document",
+                           reason="Project milestone")
+```
+
+#### `assign_secondary_responsibility(user_ids, reason=None)`
+Assign secondary responsibility to users.
 
 **Parameters:**
-- `reason` (str, optional): Reason for removal
+- `user_ids` (list): List of user IDs to assign secondary responsibility to
+- `reason` (str, optional): Reason for assignment
 
 **Returns:** `True` if successful
 
-#### `is_owner_or_co_owner(user=None)`
-Check if a user is the owner or a co-owner.
+#### `delegate_responsibility(user_ids, reason=None)`
+Delegate responsibility to other users.
 
 **Parameters:**
-- `user` (recordset, optional): User to check (defaults to current user)
+- `user_ids` (list): List of user IDs to delegate to
+- `reason` (str, optional): Reason for delegation
 
-**Returns:** `Boolean`
+**Returns:** `True` if successful
 
-#### `get_all_owners()`
-Get all owners (owner + co-owners) as a recordset.
+#### `transfer_responsibility(user_ids, reason=None)`
+Transfer responsibility to other users (alias for delegate_responsibility).
 
-**Returns:** `res.users` recordset
+**Parameters:**
+- `user_ids` (list): List of user IDs to transfer to
+- `reason` (str, optional): Reason for transfer
+
+**Returns:** `True` if successful
+
+#### `escalate_responsibility(escalation_user_id, reason=None)`
+Escalate responsibility to a higher authority.
+
+**Parameters:**
+- `escalation_user_id` (int): ID of user to escalate to
+- `reason` (str, optional): Reason for escalation
+
+**Returns:** `True` if successful
+
+#### `revoke_all_responsibility(reason=None)`
+Revoke all responsibility from the record.
+
+**Parameters:**
+- `reason` (str, optional): Reason for revocation
+
+**Returns:** `True` if successful
 
 ---
 
@@ -155,120 +203,43 @@ Get all owners (owner + co-owners) as a recordset.
   - Relation: `res.users`
   - Tracking: Yes
 
-- **`assigner_id`** (`Many2one`): User who made the assignment
-  - Relation: `res.users`
-  - Readonly: Yes
-
 - **`assignment_date`** (`Datetime`): Date when assignment was made
-  - Readonly: Yes
+  - Default: Current datetime
 
-- **`assignment_deadline`** (`Datetime`): Deadline for completing assignment
+- **`assignment_deadline`** (`Datetime`): Deadline for the assignment
 
-- **`assignment_status`** (`Selection`): Current assignment status
-  - Options: `unassigned`, `assigned`, `in_progress`, `completed`, `cancelled`
-  - Default: `unassigned`
-  - Tracking: Yes
+- **`assignment_description`** (`Text`): Description of the assignment
 
-- **`assignment_description`** (`Text`): Description of assignment
-
-- **`assignment_priority`** (`Selection`): Assignment priority
+- **`assignment_priority`** (`Selection`): Priority level
   - Options: `low`, `normal`, `high`, `urgent`
   - Default: `normal`
-  - Tracking: Yes
 
 #### Computed Fields
-- **`is_assigned`** (`Boolean`): Whether record is assigned to someone
-  - Compute: `_compute_is_assigned`
-  - Store: Yes
-  - Depends: `assigned_user_ids`
-
+- **`is_assigned`** (`Boolean`): Whether record is assigned to users
 - **`is_overdue`** (`Boolean`): Whether assignment is overdue
-  - Compute: `_compute_is_overdue`
-  - Depends: `assignment_deadline`
-
-- **`can_assign`** (`Boolean`): Whether current user can assign this record
-  - Compute: `_compute_can_assign`
-
-- **`assigned_user_count`** (`Integer`): Number of assigned users
-  - Compute: `_compute_assigned_user_count`
-  - Depends: `assigned_user_ids`
-
-- **`is_assigned_to_me`** (`Boolean`): Whether current user is assigned
-  - Compute: `_compute_is_assigned_to_me`
-  - Depends: `assigned_user_ids`
+- **`can_assign`** (`Boolean`): Whether current user can assign
+- **`assigned_count`** (`Integer`): Number of assigned users
+- **`is_assigned_to_me`** (`Boolean`): Whether assigned to current user
 
 ### Methods
 
 #### `assign_to_users(user_ids, deadline=None, description=None, priority='normal', reason=None)`
-Assign record to multiple users.
+Assign the record to users.
 
-**Parameters:**
-- `user_ids` (list): List of user IDs to assign
-- `deadline` (datetime, optional): Assignment deadline
-- `description` (str, optional): Assignment description
-- `priority` (str, optional): Assignment priority
-- `reason` (str, optional): Reason for assignment
+#### `unassign_from_users(user_ids=None, reason=None)`
+Unassign users from the record.
 
-**Returns:** `True` if successful
-
-#### `add_assignee(user_id, reason=None)`
-Add an assignee to the record.
-
-**Parameters:**
-- `user_id` (int): ID of user to assign
-- `reason` (str, optional): Reason for assignment
-
-**Returns:** `True` if successful
-
-#### `remove_assignee(user_id, reason=None)`
-Remove an assignee from the record.
-
-**Parameters:**
-- `user_id` (int): ID of user to remove
-- `reason` (str, optional): Reason for removal
-
-**Returns:** `True` if successful
-
-#### `unassign_all_users(reason=None)`
-Remove all assignees from the record.
-
-**Parameters:**
-- `reason` (str, optional): Reason for unassignment
-
-**Returns:** `True` if successful
-
-#### `start_assignment(reason=None)`
-Start the assignment (change status to in_progress).
-
-**Parameters:**
-- `reason` (str, optional): Reason for starting
-
-**Returns:** `True` if successful
-
-#### `complete_assignment(reason=None)`
-Complete the assignment (change status to completed).
-
-**Parameters:**
-- `reason` (str, optional): Reason for completion
-
-**Returns:** `True` if successful
-
-#### `cancel_assignment(reason=None)`
-Cancel the assignment (change status to cancelled).
-
-**Parameters:**
-- `reason` (str, optional): Reason for cancellation
-
-**Returns:** `True` if successful
+#### `reassign_to_users(user_ids, deadline=None, description=None, priority='normal', reason=None)`
+Reassign the record to different users.
 
 ---
 
-## 🔐 Accessible Mixin (`tk.accessible.mixin`)
+## 🔒 Accessible Mixin (`tk.accessible.mixin`)
 
 ### Fields
 
 #### Core Fields
-- **`access_level`** (`Selection`): Access level for this record
+- **`access_level`** (`Selection`): Access level for the record
   - Options: `public`, `internal`, `restricted`, `private`
   - Default: `internal`
   - Tracking: Yes
@@ -276,26 +247,23 @@ Cancel the assignment (change status to cancelled).
 - **`allowed_user_ids`** (`Many2many`): Users with explicit access
   - Relation: `res.users`
 
-- **`allowed_group_ids`** (`Many2many`): Groups with access
+- **`allowed_group_ids`** (`Many2many`): System groups with access
   - Relation: `res.groups`
 
 - **`custom_access_group_ids`** (`Many2many`): Custom access groups
   - Relation: `tk.accessible.group`
 
-- **`access_start_date`** (`Datetime`): Date from which access is granted
-
-- **`access_end_date`** (`Datetime`): Date until which access is granted
+- **`access_start_date`** (`Datetime`): When access begins
+- **`access_end_date`** (`Datetime`): When access expires
 
 #### Computed Fields
 - **`allowed_group_users_ids`** (`Many2many`): Users from allowed groups
   - Compute: `_compute_allowed_group_users_ids`
   - Store: Yes
-  - Depends: `allowed_group_ids`
 
 - **`custom_group_users_ids`** (`Many2many`): Users from custom groups
   - Compute: `_compute_custom_group_users_ids`
   - Store: Yes
-  - Depends: `custom_access_group_ids`
 
 - **`all_allowed_users_ids`** (`Many2many`): All users with access
   - Compute: `_compute_all_allowed_users_ids`
@@ -303,7 +271,6 @@ Cancel the assignment (change status to cancelled).
 
 - **`is_access_expired`** (`Boolean`): Whether access has expired
   - Compute: `_compute_is_access_expired`
-  - Depends: `access_end_date`
 
 - **`can_grant_access`** (`Boolean`): Whether current user can grant access
   - Compute: `_compute_can_grant_access`
@@ -313,270 +280,221 @@ Cancel the assignment (change status to cancelled).
 
 ### Methods
 
-#### `grant_access(user_ids, reason=None)`
-Grant access to specific users.
+#### Access Management for Users
+- **`grant_access_to_user(user_id, start_date=None, end_date=None, reason=None)`**: Grant access to a user
+- **`revoke_access_from_user(user_id, reason=None)`**: Revoke access from a user
+- **`bulk_grant_access_to_users(user_ids, start_date=None, end_date=None, reason=None)`**: Grant access to multiple users
+- **`bulk_revoke_access_from_users(user_ids, reason=None)`**: Revoke access from multiple users
 
-**Parameters:**
-- `user_ids` (list): List of user IDs to grant access
-- `reason` (str, optional): Reason for granting access
+#### Access Management for Groups
+- **`grant_access_to_group(group_id, start_date=None, end_date=None, reason=None)`**: Grant access to a system group
+- **`revoke_access_from_group(group_id, reason=None)`**: Revoke access from a system group
+- **`grant_access_to_custom_group(custom_group_id, start_date=None, end_date=None, reason=None)`**: Grant access to a custom group
+- **`revoke_access_from_custom_group(custom_group_id, reason=None)`**: Revoke access from a custom group
 
-**Returns:** `True` if successful
+#### Group Creation and Management
+- **`create_and_assign_custom_group(group_name, user_ids, group_type='custom', reason=None)`**: Create and assign new custom group
 
-#### `revoke_access(user_ids, reason=None)`
-Revoke access from specific users.
+#### Access Control
+- **`set_access_level(level, reason=None)`**: Set the access level
+- **`set_access_duration(start_date=None, end_date=None, reason=None)`**: Set access duration
+- **`get_all_accessible_users()`**: Get all users with access
+- **`check_user_has_access(user_id)`**: Check if user has access
 
-**Parameters:**
-- `user_ids` (list): List of user IDs to revoke access
-- `reason` (str, optional): Reason for revoking access
+#### Access Level Logic
 
-**Returns:** `True` if successful
+1. **Public**: Everyone has access (including portal users)
+2. **Internal**: All internal users have access (group_user)
+3. **Restricted**: Only explicit users, allowed groups, and custom groups have access
+4. **Private**: Only explicit users and custom groups have access (no system groups)
 
-#### `grant_group_access(group_id, reason=None)`
-Grant access to an Odoo group.
-
-**Parameters:**
-- `group_id` (int): ID of group to grant access
-- `reason` (str, optional): Reason for granting access
-
-**Returns:** `True` if successful
-
-#### `revoke_group_access(group_id, reason=None)`
-Revoke access from an Odoo group.
-
-**Parameters:**
-- `group_id` (int): ID of group to revoke access
-- `reason` (str, optional): Reason for revoking access
-
-**Returns:** `True` if successful
-
-#### `set_access_level(level, reason=None)`
-Set the access level for the record.
-
-**Parameters:**
-- `level` (str): Access level (`public`, `internal`, `restricted`, `private`)
-- `reason` (str, optional): Reason for change
-
-**Returns:** `True` if successful
-
-#### `check_user_access(user=None)`
-Check if a user has access to the record.
-
-**Parameters:**
-- `user` (recordset, optional): User to check (defaults to current user)
-
-**Returns:** `Boolean`
-
-#### `copy_access_from(source_record, reason=None)`
-Copy access permissions from another record.
-
-**Parameters:**
-- `source_record` (recordset): Record to copy permissions from
-- `reason` (str, optional): Reason for copying
-
-**Returns:** `True` if successful
+Special access rules:
+- System administrators always have access
+- Record owners always have access (if using ownable mixin)
+- Co-owners always have access (if using ownable mixin)
+- Access can be time-limited with start/end dates
+- Expired access is automatically denied
 
 ---
 
-## 👥 Responsible Mixin (`tk.responsible.mixin`)
+## 🔒 Accessible Group Mixin (`tk.accessible.group.mixin`)
 
 ### Fields
 
-#### Core Fields
-- **`responsible_user_ids`** (`Many2many`): Users responsible for this record
-  - Relation: `res.users`
-  - Tracking: Yes
-
-- **`secondary_responsible_ids`** (`Many2many`): Users with secondary responsibility
-  - Relation: `res.users`
-  - Tracking: Yes
-
-- **`responsibility_type`** (`Selection`): Type of responsibility
-  - Options: `primary`, `secondary`, `backup`, `temporary`
-  - Default: `primary`
-  - Tracking: Yes
-
-- **`responsibility_start_date`** (`Datetime`): When responsibility was assigned
-  - Default: Current datetime
-
-- **`responsibility_end_date`** (`Datetime`): When responsibility ends
-
-- **`responsibility_delegated_by`** (`Many2one`): User who delegated responsibility
-  - Relation: `res.users`
-  - Readonly: Yes
-
-- **`responsibility_description`** (`Text`): Description of responsibilities
-
-#### Computed Fields
-- **`is_responsibility_active`** (`Boolean`): Whether responsibility is active
-  - Compute: `_compute_is_responsibility_active`
-  - Store: Yes
-  - Depends: `responsible_user_ids`, `responsibility_end_date`
-
-- **`is_responsibility_expired`** (`Boolean`): Whether responsibility has expired
-  - Compute: `_compute_is_responsibility_expired`
-  - Depends: `responsibility_end_date`
-
-- **`can_delegate`** (`Boolean`): Whether current user can delegate responsibility
-  - Compute: `_compute_can_delegate`
-
-- **`responsibility_count`** (`Integer`): Number of responsible users
-  - Compute: `_compute_responsibility_count`
-  - Depends: `responsible_user_ids`
+#### Enhanced Group Management
+- **`allowed_group_users_ids`** (`Many2many`): All users from system and custom groups
+- **`custom_access_group_ids`** (`Many2many`): Custom access groups with enhanced functionality
+- **`can_manage_groups`** (`Boolean`): Whether current user can manage groups
+- **`total_group_users_count`** (`Integer`): Total users with group access
+- **`active_custom_groups_count`** (`Integer`): Number of active custom groups
+- **`has_group_access`** (`Boolean`): Whether current user has group access
 
 ### Methods
 
-#### `assign_responsibility(user_ids, responsibility_type='primary', description=None, end_date=None, reason=None)`
-Assign responsibility to users.
+#### Custom Group Management
+- **`add_custom_access_group(group_id, reason=None)`**: Add custom group to record
+- **`remove_custom_access_group(group_id, reason=None)`**: Remove custom group from record
+- **`replace_custom_access_groups(group_ids, reason=None)`**: Replace all custom groups
+- **`clear_all_custom_groups(reason=None)`**: Remove all custom groups
 
-**Parameters:**
-- `user_ids` (list): List of user IDs to make responsible
-- `responsibility_type` (str, optional): Type of responsibility
-- `description` (str, optional): Description of responsibilities
-- `end_date` (datetime, optional): When responsibility ends
-- `reason` (str, optional): Reason for assignment
+#### Group Information
+- **`get_users_from_group(group_id)`**: Get users from specific group
+- **`get_all_group_users(include_inactive=False)`**: Get all users from all groups
+- **`check_user_group_access(user=None)`**: Check if user has group access
+- **`get_group_access_summary()`**: Get detailed group access summary
 
-**Returns:** `True` if successful
-
-#### `delegate_responsibility(user_id, end_date=None, reason=None)`
-Delegate responsibility to another user.
-
-**Parameters:**
-- `user_id` (int): ID of user to delegate to
-- `end_date` (datetime, optional): When delegation ends
-- `reason` (str, optional): Reason for delegation
-
-**Returns:** `True` if successful
-
-#### `remove_responsibility(user_id, reason=None)`
-Remove responsibility from a user.
-
-**Parameters:**
-- `user_id` (int): ID of user to remove responsibility from
-- `reason` (str, optional): Reason for removal
-
-**Returns:** `True` if successful
-
-#### `transfer_responsibility(old_user_id, new_user_id, reason=None)`
-Transfer responsibility from one user to another.
-
-**Parameters:**
-- `old_user_id` (int): ID of current responsible user
-- `new_user_id` (int): ID of new responsible user
-- `reason` (str, optional): Reason for transfer
-
-**Returns:** `True` if successful
-
-#### `add_secondary_responsible(user_ids, reason=None)`
-Add users as secondary responsible.
-
-**Parameters:**
-- `user_ids` (list): List of user IDs to add
-- `reason` (str, optional): Reason for addition
-
-**Returns:** `True` if successful
+#### Actions
+- **`action_manage_custom_groups()`**: Open wizard to manage custom groups
+- **`action_view_group_users()`**: View all users with group access
 
 ---
 
-## 🏗️ Supporting Models
+## 📊 Models
 
 ### Custom Access Group (`tk.accessible.group`)
 
 #### Fields
-- **`name`** (`Char`): Group name (required)
+- **`name`** (`Char`): Group name
 - **`description`** (`Text`): Group description
-- **`user_ids`** (`Many2many`): Users in this group
-- **`active`** (`Boolean`): Whether group is active (default: True)
+- **`group_type`** (`Selection`): Type of group
+  - Options: `project`, `department`, `temporary`, `custom`
+- **`user_ids`** (`Many2many`): Users in the group
+- **`active`** (`Boolean`): Whether group is active
+- **`user_count`** (`Integer`): Number of users (computed)
 
 #### Methods
+- **`add_users(user_ids, reason=None)`**: Add users to group
+- **`remove_users(user_ids, reason=None)`**: Remove users from group
+- **`toggle_active()`**: Toggle active state
+- **`create_project_team_group(project_name, user_ids)`**: Create project team group
+- **`create_department_group(department_name, user_ids)`**: Create department group
 
-#### `add_users(user_ids)`
-Add users to the access group.
-
-#### `remove_users(user_ids)`
-Remove users from the access group.
-
-### Dashboard (`tk.comprehensive.dashboard`)
+### Access Log (`tk.access.log`)
 
 #### Fields
-- **`date_from`** (`Date`): Start date for statistics
-- **`date_to`** (`Date`): End date for statistics
-- Various computed statistics fields for each mixin
+- **`model_name`** (`Char`): Model of the record
+- **`res_id`** (`Integer`): ID of the record
+- **`record_reference`** (`Char`): Display name of record (computed)
+- **`action`** (`Selection`): Type of access change
+- **`target_user_id`** (`Many2one`): Target user (if applicable)
+- **`target_group_id`** (`Many2one`): Target group (if applicable)
+- **`target_custom_group_id`** (`Many2one`): Target custom group (if applicable)
+- **`user_id`** (`Many2one`): User who made the change
+- **`date`** (`Datetime`): When change occurred
+- **`reason`** (`Text`): Reason for change
+- **`extra_info`** (`Text`): Additional information
+- **`display_name`** (`Char`): Formatted display name (computed)
 
 #### Methods
-
-#### `refresh_statistics()`
-Refresh all computed statistics.
+- **`open_record()`**: Open the referenced record
+- **`cleanup_old_logs(days=90)`**: Clean up old log entries
 
 ---
 
-## 📊 Log Models
+## 🧙‍♂️ Wizards
 
-### Ownership Log (`tk.ownership.log`)
-Tracks all ownership changes.
+### Access Management Wizards
 
-#### Fields
-- **`model_name`** (`Char`): Model name of the record
-- **`res_id`** (`Integer`): ID of the record
-- **`action`** (`Selection`): Type of action performed
-- **`old_owner_id`** (`Many2one`): Previous owner
-- **`new_owner_id`** (`Many2one`): New owner
-- **`reason`** (`Text`): Reason for the change
-- **`user_id`** (`Many2one`): User who performed the action
-- **`date`** (`Datetime`): When the action occurred
+#### Bulk Access Wizard (`tk.bulk.access.wizard`)
+- Bulk update access control for multiple records
+- Set access levels, permissions, and duration
+- Support for users, groups, and custom groups
 
-### Assignment Log (`tk.assignment.log`)
-Tracks all assignment activities.
+#### Manage Access Wizard (`tk.manage.access.wizard`)
+- Manage access for individual records
+- Complete access control configuration
+- User-friendly interface for permissions
 
-### Access Log (`tk.access.log`)
-Tracks access permission changes.
+#### Accessible Group Wizard (`tk.accessible.group.wizard`)
+- Create and configure custom access groups
+- Template-based group creation
+- Project, department, and temporary group types
+- User and manager assignment
+- Copy from existing groups functionality
 
-### Responsibility Log (`tk.responsibility.log`)
-Tracks responsibility changes.
+### Key Features
+
+#### Template Types
+- **Project Team Template**: Pre-configured for project teams
+- **Department Team Template**: Department-based access
+- **External Partners Template**: External user access
+- **Temporary Access Template**: Time-limited access groups
+
+#### Group Types
+- **General**: General purpose access groups
+- **Project**: Project team access groups
+- **Department**: Department-based groups
+- **Temporary**: Time-limited groups with expiry
+- **External**: External user groups
+- **Custom**: Fully customizable groups
+
+#### Visibility Levels
+- **Public**: Anyone can see the group
+- **Internal**: Internal users can see
+- **Restricted**: Only managers can see
+- **Private**: Only creator can see
 
 ---
 
 ## 🔍 Search Methods
 
-### Domain Helpers
-
-#### `_get_ownership_domain()`
-Returns domain for records owned by current user.
-
-#### `_get_assignment_domain()`
-Returns domain for records assigned to current user.
-
-#### `_get_accessible_domain()`
-Returns domain for records accessible to current user.
-
-#### `_get_responsibility_domain()`
-Returns domain for records user is responsible for.
+All mixins provide search methods for their computed fields:
+- `_search_can_delegate()` - Search records where user can delegate responsibility
+- `_search_can_transfer()` - Search records where user can transfer ownership
+- `_search_can_assign()` - Search records where user can assign users
+- `_search_can_access()` - Search records where user has access
 
 ---
 
-## 🚨 Exceptions
+## 🎨 Integration Examples
 
-### Custom Exceptions
-- **`OwnershipError`**: Raised for ownership-related issues
-- **`AssignmentError`**: Raised for assignment-related issues
-- **`AccessError`**: Raised for access permission issues
-- **`ResponsibilityError`**: Raised for responsibility-related issues
+### Using Multiple Mixins Together
 
----
+```python
+class ProjectDocument(models.Model):
+    _name = 'project.document'
+    _inherit = [
+        'tk.ownable.mixin',
+        'tk.responsible.mixin', 
+        'tk.assignable.mixin',
+        'tk.accessible.mixin',
+        'tk.accessible.group.mixin'
+    ]
+    
+    name = fields.Char(required=True)
+    content = fields.Html()
+    
+    def setup_project_access(self, project_team_users):
+        # Create project team group
+        team_group = self.create_and_assign_custom_group(
+            group_name=f"Project Team - {self.name}",
+            user_ids=project_team_users.ids,
+            group_type='project'
+        )
+        
+        # Set restricted access
+        self.set_access_level('restricted')
+        
+        # Assign responsibility to project lead
+        lead = project_team_users.filtered('is_project_lead')[:1]
+        if lead:
+            self.assign_responsibility([lead.id])
+```
 
-## 🔧 Utility Functions
+### Bulk Operations
 
-### Permission Checking
-- **`has_ownership_permission(record, user, action)`**: Check ownership permissions
-- **`has_assignment_permission(record, user, action)`**: Check assignment permissions
-- **`has_access_permission(record, user, action)`**: Check access permissions
-- **`has_responsibility_permission(record, user, action)`**: Check responsibility permissions
+```python
+# Bulk access management
+documents = self.env['project.document'].search([('project_id', '=', project.id)])
 
-### Logging Helpers
-- **`log_ownership_change()`**: Log ownership changes
-- **`log_assignment_change()`**: Log assignment changes
-- **`log_access_change()`**: Log access changes
-- **`log_responsibility_change()`**: Log responsibility changes
+# Create shared access group
+shared_group = self.env['tk.accessible.group'].create({
+    'name': f'Project {project.name} Access',
+    'group_type': 'project',
+    'user_ids': [(6, 0, project.team_member_ids.ids)]
+})
 
----
-
-**Note**: All methods that modify data include audit logging automatically. All computed fields are cached for performance and updated when dependencies change.
+# Apply to all documents
+for doc in documents:
+    doc.grant_access_to_custom_group(shared_group.id, reason="Project access setup")
+```

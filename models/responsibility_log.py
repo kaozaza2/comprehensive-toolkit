@@ -26,8 +26,11 @@ class ResponsibilityLog(models.Model):
         ('add_secondary', 'Add Secondary'),
         ('remove_secondary', 'Remove Secondary'),
         ('assign_multiple', 'Assign Multiple'),
+        ('assign_secondary_multiple', 'Assign Secondary Multiple'),
         ('delegate_multiple', 'Delegate Multiple'),
         ('transfer_multiple', 'Transfer Multiple'),
+        ('delegate_secondary_multiple', 'Delegate Secondary Multiple'),
+        ('transfer_secondary_multiple', 'Transfer Secondary Multiple'),
         ('add_responsible', 'Add Responsible'),
         ('remove_responsible', 'Remove Responsible'),
         ('revoke_all', 'Revoke All')

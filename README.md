@@ -100,6 +100,9 @@ task.add_co_owner(user.id, reason="Collaboration needed")
 
 # Release ownership
 task.release_ownership(reason="Task completed")
+
+# Check ownership
+is_owned = task.is_owned_by_me # or task.is_owner_or_co_owner(user.id)
 ```
 
 ### Assignment Management
@@ -114,30 +117,51 @@ task.assign_to_users(
 
 # Change assignment status
 task.assignment_status = 'in_progress'
+
+# Check if assigned
+assigned = task.is_assigned_to_me # or task.is_assigned_to_user(user.id)
 ```
 
 ### Access Control
 ```python
 # Set access level
-task.access_level = 'restricted'
+task.set_access_level(
+    'restricted', 
+    reason="Confidential project"
+)
 
-# Grant access to specific users
-task.grant_access([user1.id, user2.id], reason="Need review access")
+# Set time-based access
+task.set_access_duration(
+    start_date=fields.Datetime.now(),
+    end_date=fields.Datetime.now() + timedelta(days=30),
+    reason="Temporary access for review"
+)
+
+# Grant access to specific user
+task.grant_access_to_user(
+    user_id=user1.id,
+    start_date=optional_start_date,
+    end_date=optional_end_date,
+    reason="Need review access",
+)
 
 # Create custom access group
-access_group = self.env['tk.accessible.group'].create({
-    'name': 'Project Alpha Team',
-    'description': 'Team members for Project Alpha',
-    'user_ids': [(6, 0, [user1.id, user2.id, user3.id])]
-})
+task.create_and_assign_custom_group(
+    group_name="Project Alpha Team",
+    user_ids=[user1.id, user2.id, user3.id],
+    group_type="custom", # project, department, temporary, custom
+    reason="Project team access"
+)
+
+# Check access
+has_access = task._check_user_access(user.id)
 ```
 
 ### Responsibility Management
 ```python
 # Assign responsibility
 task.assign_responsibility(
-    [user1.id], 
-    responsibility_type='primary',
+    [user1.id],
     description="Overall project coordination"
 )
 

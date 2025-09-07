@@ -26,8 +26,11 @@
         'views/responsibility_log_views.xml',
         'views/accessible_group_views.xml',
         'views/dashboard_views.xml',
-        'views/wizard_views.xml',
         'views/menu_views.xml',
+        'wizard_views/accessible_wizard.xml',
+        'wizard_views/assignment_wizard.xml',
+        'wizard_views/ownership_wizard.xml',
+        'wizard_views/responsibility_wizard.xml',
         'data/scheduled_actions.xml',
     ],
     'assets': {
