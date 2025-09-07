@@ -1,283 +1,353 @@
 # User Guide
 
-## Getting Started
+This comprehensive guide covers how to use all features of the Comprehensive Toolkit module in your daily Odoo workflows.
 
-The Comprehensive Toolkit provides powerful features for managing ownership, assignments, access control, and responsibilities across your Odoo system. This guide will walk you through using these features effectively.
+## 🎯 Overview
 
-## Navigation
+The Comprehensive Toolkit provides four powerful mixins that can be inherited by any Odoo model to add advanced management capabilities:
 
-Access the toolkit through the main menu: **Comprehensive Toolkit**
+1. **Ownership Management** - Track and manage record ownership
+2. **Assignment Management** - Assign records to users with tracking
+3. **Access Control** - Manage who can access records
+4. **Responsibility Management** - Define and track responsibilities
 
-### Main Menu Structure
-- **Dashboard** - Overview and statistics
-- **Example Models** - Sample implementations
-  - Project Management (Tasks & Projects)
-  - Documents
-- **Access Management** - Custom access groups
-- **Activity Logs** - Audit trail and history
-- **Quick Actions** - Bulk operations
+## 🏠 Getting Started
 
-## Core Features
+### Accessing the Dashboard
 
-### 🏆 Ownership Management
+1. Navigate to **Comprehensive Toolkit** in the main menu
+2. Click **Dashboard** to see overview statistics
+3. Use date filters to view activity for specific periods
 
-#### Understanding Ownership
+The dashboard shows:
+- Total activity counts across all features
+- Your personal assignments and responsibilities
+- Recent activity summaries
+- Overdue items requiring attention
+
+## 👤 Ownership Management
+
+### Understanding Ownership
+
 Every record can have:
-- **Primary Owner** - Main responsible person
-- **Co-owners** - Additional people with ownership rights
-- **Ownership History** - Complete audit trail
+- **One Owner**: Primary owner with full control
+- **Multiple Co-owners**: Additional users with ownership rights
+- **Previous Owner**: Tracked for audit purposes
 
-#### Managing Ownership
+### Basic Ownership Operations
 
-**Transfer Ownership:**
-1. Open any record with ownership
-2. Click **Transfer Ownership** button
-3. Select new owner
-4. Add reason (optional)
+#### Viewing Ownership Information
+On any record with ownership capabilities, you'll see:
+- **Owner**: Current primary owner
+- **Co-owners**: List of co-owners
+- **Ownership Date**: When current ownership was established
+- **Previous Owner**: Who owned it before
+
+#### Transferring Ownership
+1. Open a record you own
+2. Click **Action → Transfer Ownership**
+3. Select the new owner
+4. Provide a reason (optional but recommended)
 5. Click **Transfer**
 
-**Add Co-owners:**
-1. Go to **Ownership** tab
-2. Click **Add Co-owners** field
-3. Select users to add
-4. Save the record
+#### Adding Co-owners
+1. Open a record you own
+2. Click **Action → Add Co-owner**
+3. Select user(s) to add as co-owners
+4. Provide a reason
+5. Click **Add**
 
-**Claim Unowned Records:**
-1. Find records without owners
-2. Click **Claim Ownership**
-3. You become the owner automatically
+#### Releasing Ownership
+1. Open a record you own
+2. Click **Action → Release Ownership**
+3. Provide a reason
+4. Click **Release**
 
-### 📋 Assignment Management
+The record becomes unowned and can be claimed by others.
 
-#### Assignment Basics
-Assignments allow you to delegate tasks to multiple users with:
-- **Deadlines** - When work should be completed
-- **Priorities** - Low, Normal, High, Urgent
-- **Status Tracking** - Unassigned → Assigned → In Progress → Completed
-- **Assignment History** - Full audit trail
+#### Claiming Ownership
+1. Find an unowned record
+2. Click **Action → Claim Ownership**
+3. Provide a reason
+4. Click **Claim**
 
-#### Creating Assignments
+### Advanced Ownership Features
 
-**Single Assignment:**
+#### Bulk Ownership Operations
+1. Navigate to **Comprehensive Toolkit → Configuration → Bulk Operations**
+2. Select **Mass Ownership Transfer**
+3. Choose records to transfer
+4. Select new owner
+5. Provide reason and execute
+
+#### Co-owner Management
+- **Multiple Co-owners**: Add several users at once
+- **Remove Co-owners**: Remove individual or all co-owners
+- **Co-owner Permissions**: Co-owners can manage other co-owners
+
+## 📋 Assignment Management
+
+### Understanding Assignments
+
+Records can be assigned to multiple users with:
+- **Assignment Status**: Unassigned, Assigned, In Progress, Completed, Cancelled
+- **Priority Levels**: Low, Normal, High, Urgent
+- **Deadlines**: Due dates with overdue tracking
+- **Descriptions**: Detailed task descriptions
+
+### Assignment Operations
+
+#### Assigning Records
 1. Open a record
-2. Click **Assign Users** button
+2. Click **Action → Assign to Users**
 3. Select users to assign
-4. Set deadline and priority
-5. Add description
+4. Set priority and deadline
+5. Add description of what needs to be done
 6. Click **Assign**
 
-**Bulk Assignment:**
-1. Select multiple records in list view
-2. Go to **Action** menu
-3. Choose **Bulk Assign**
-4. Configure assignment details
-5. Apply to all selected records
+#### Managing Assignment Status
+Update the assignment status as work progresses:
+- **Assigned** → **In Progress**: When work begins
+- **In Progress** → **Completed**: When finished
+- **Any Status** → **Cancelled**: If assignment is cancelled
 
-#### Managing Assignments
+#### Adding/Removing Assignees
+1. **Add Assignee**: Click **Action → Add Assignee**
+2. **Remove Assignee**: Click **Action → Remove Assignee**
+3. **Bulk Assignment**: Use bulk operations for multiple records
 
-**Start Working:**
-1. Open your assigned record
-2. Click **Start Task** (if available)
-3. Status changes to "In Progress"
+### Assignment Tracking
 
-**Complete Assignment:**
-1. Finish your work
-2. Click **Complete Task**
-3. Status changes to "Completed"
+#### My Assignments View
+1. Navigate to **Comprehensive Toolkit → Dashboard**
+2. View **My Assignments** section
+3. See overdue assignments highlighted
+4. Filter by status or priority
 
-**View My Assignments:**
-- Use filters: "My Tasks", "Assigned to Me"
-- Dashboard shows assignment statistics
+#### Assignment Notifications
+The system tracks:
+- When assignments are made
+- Status changes
+- Deadline approaches
+- Overdue items
 
-### 🔐 Access Control
+## 🔐 Access Control Management
 
-#### Access Levels
+### Access Levels
 
-**Public** - Everyone can access
-**Internal** - All internal users can access
-**Restricted** - Only specified users/groups can access
-**Private** - Only owner and specified users can access
+#### Public Access
+- Anyone can view and modify
+- No restrictions applied
+- Use for openly shared information
 
-#### Managing Access
+#### Internal Access (Default)
+- All internal users can access
+- External users cannot access
+- Standard for most business records
 
-**Set Access Level:**
-1. Open record
-2. Click **Manage Access** button
-3. Choose access level
-4. For Restricted/Private: add allowed users/groups
-5. Set access duration (optional)
-6. Save changes
+#### Restricted Access
+- Only specifically granted users/groups can access
+- Requires explicit permission grants
+- Use for sensitive information
 
-**Using Custom Groups:**
-1. Go to **Access Management → Access Groups**
-2. Create new group or use existing
-3. Add users to group
-4. Assign group to records
+#### Private Access
+- Only owner and co-owners can access
+- Most restrictive level
+- Use for confidential data
 
-#### Creating Access Groups
+### Managing Access Permissions
 
-**Quick Group Creation:**
-1. Click **Access Management → Create Access Group**
-2. Choose template (Project Team, Department, etc.)
-3. Add users and managers
-4. Set group properties
-5. Click **Create Group**
+#### Setting Access Levels
+1. Open a record
+2. Go to **Access Control** tab
+3. Select appropriate **Access Level**
+4. Save the record
 
-### 👥 Responsibility Management
+#### Granting User Access
+1. Set access level to **Restricted**
+2. Click **Action → Grant Access**
+3. Select users to grant access
+4. Provide reason
+5. Click **Grant**
 
-#### Responsibility Types
-- **Primary** - Main responsible person
-- **Secondary** - Backup/support person
-- **Backup** - Emergency contact
-- **Temporary** - Time-limited responsibility
+#### Group-based Access
+1. In **Access Control** tab
+2. Add Odoo groups to **Allowed Groups**
+3. All group members automatically get access
+4. Use for department or role-based access
+
+#### Custom Access Groups
+1. Navigate to **Comprehensive Toolkit → Access Groups**
+2. Click **Create**
+3. Name the group and add description
+4. Add users to the group
+5. Apply the group to records as needed
+
+### Time-based Access
+Set access start and end dates:
+1. In **Access Control** tab
+2. Set **Access Start Date** (when access begins)
+3. Set **Access End Date** (when access expires)
+4. System automatically enforces time restrictions
+
+## 👥 Responsibility Management
+
+### Understanding Responsibilities
+
+Responsibilities define who is accountable for records:
+- **Primary Responsibility**: Main accountable person(s)
+- **Secondary Responsibility**: Supporting accountability
+- **Responsibility Types**: Primary, Secondary, Backup, Temporary
+- **Time-bound**: Can have start and end dates
+
+### Responsibility Operations
+
+#### Assigning Responsibility
+1. Open a record
+2. Click **Action → Assign Responsibility**
+3. Select users to make responsible
+4. Choose responsibility type
+5. Add description of responsibilities
+6. Set end date if temporary
+7. Click **Assign**
 
 #### Delegating Responsibility
+1. Open a record you're responsible for
+2. Click **Action → Delegate Responsibility**
+3. Select user to delegate to
+4. Set delegation period
+5. Provide reason for delegation
+6. Click **Delegate**
 
-**Basic Delegation:**
-1. Open record you're responsible for
-2. Click **Delegate Responsibility**
-3. Select users to delegate to
-4. Choose responsibility type
-5. Set end date (for temporary)
-6. Add description and reason
-7. Click **Delegate**
+#### Managing Secondary Responsibilities
+1. Add **Secondary Responsible** users
+2. Use for support roles or backup accountability
+3. Secondary responsible users have limited permissions
 
-**Escalation:**
-1. Use delegation to escalate to manager
-2. Add escalation reason
-3. System tracks escalation chain
+### Responsibility Types
 
-### 📊 Dashboard Usage
+#### Primary Responsibility
+- Full accountability for the record
+- Can delegate to others
+- Tracked as main responsible party
 
-#### Overview Statistics
-The dashboard shows:
-- **My Work** - Tasks assigned to you
-- **My Ownership** - Records you own
-- **My Responsibilities** - What you're responsible for
-- **Team Activity** - Recent changes and activities
+#### Secondary Responsibility
+- Supporting role in accountability
+- Limited delegation rights
+- Assists primary responsible party
 
-#### Filtering and Views
-- **Date Range** - Filter by time period
-- **Activity Type** - Focus on specific activities
-- **Quick Actions** - Direct access to common operations
+#### Backup Responsibility
+- Takes over if primary is unavailable
+- Activated when needed
+- Standby accountability
 
-#### Key Metrics
-- Overdue assignments
-- Unowned records
-- Access violations
-- Responsibility changes
+#### Temporary Responsibility
+- Time-limited responsibility
+- Automatically expires on end date
+- Used for coverage periods
 
-## Common Workflows
+## 🔍 Search and Filtering
 
-### Project Task Management
+### Smart Filters
+Use computed fields for advanced searching:
+- **Is Owned**: Find records with/without owners
+- **Is Assigned to Me**: Your assigned records
+- **Has Access**: Records you can access
+- **Is Overdue**: Assignments past deadline
+- **My Responsibilities**: Records you're responsible for
 
-1. **Create Task**
-   - Define task details
-   - Set owner (yourself or team member)
-   - Configure access level
+### Advanced Search Examples
+```
+# Find unowned records
+is_owned = False
 
-2. **Assign Workers**
-   - Use assignment functionality
-   - Set deadlines and priorities
-   - Track progress
+# Find overdue assignments assigned to me
+is_assigned_to_me = True AND is_overdue = True
 
-3. **Manage Access**
-   - Set appropriate access level
-   - Create project team groups
-   - Control who can see/edit
+# Find records I own or co-own
+is_owned_by_me = True
 
-4. **Track Responsibility**
-   - Assign primary responsible person
-   - Add secondary for backup
-   - Delegate when needed
+# Find records with restricted access
+access_level = 'restricted'
+```
 
-### Document Management
+## 📊 Monitoring and Reporting
 
-1. **Create Document**
-   - Set document type and version
-   - Configure ownership
-   - Set access restrictions
+### Dashboard Analytics
+Monitor key metrics:
+- **Activity Trends**: Track changes over time
+- **User Activity**: See who's most active
+- **Overdue Items**: Items requiring attention
+- **Access Patterns**: Understanding usage
 
-2. **Review Process**
-   - Assign reviewers
-   - Track review status
-   - Manage approval workflow
+### Log Analysis
+Access detailed logs:
+1. Navigate to **Comprehensive Toolkit → Logs**
+2. Choose log type:
+   - **Ownership Logs**: All ownership changes
+   - **Assignment Logs**: Assignment activities
+   - **Access Logs**: Access permission changes
+   - **Responsibility Logs**: Responsibility tracking
 
-3. **Access Control**
-   - Restrict sensitive documents
-   - Create reviewer groups
-   - Time-limited access
+### Export and Reporting
+1. Use Odoo's standard export features
+2. Create custom reports using log data
+3. Set up automated notifications for key events
 
-### Team Collaboration
+## 🔧 Configuration and Customization
 
-1. **Create Team Groups**
-   - Define project teams
-   - Set team managers
-   - Configure access levels
+### User Preferences
+Configure personal settings:
+1. Set default assignment priorities
+2. Configure notification preferences
+3. Customize dashboard views
 
-2. **Assign Team Tasks**
-   - Bulk assign to team members
-   - Set team deadlines
-   - Track team progress
+### Administrative Configuration
+For administrators:
+1. Configure security groups
+2. Set up bulk operation templates
+3. Create custom access group templates
+4. Configure audit retention policies
 
-3. **Monitor Activity**
-   - Use dashboard for overview
-   - Review activity logs
-   - Address issues quickly
-
-## Tips and Best Practices
+## 🚨 Best Practices
 
 ### Ownership Management
-- **Always assign ownership** to ensure accountability
-- **Use co-owners** for shared responsibilities
-- **Document transfer reasons** for audit purposes
+- Always provide reasons for ownership changes
+- Use co-owners for collaborative work
+- Regularly review unowned records
+- Document ownership policies
 
 ### Assignment Management
-- **Set realistic deadlines** to avoid overdue tasks
-- **Use appropriate priorities** to help users prioritize
-- **Monitor overdue assignments** regularly
+- Set realistic deadlines
+- Use appropriate priority levels
+- Provide clear descriptions
+- Monitor overdue assignments
 
 ### Access Control
-- **Start restrictive** and open up as needed
-- **Use groups** instead of individual user assignments
-- **Review access regularly** and remove unused permissions
+- Start with restrictive access and grant as needed
+- Use groups for role-based access
+- Regularly review access permissions
+- Document access policies
 
 ### Responsibility Management
-- **Have backup responsible persons** for critical items
-- **Document responsibility changes** clearly
-- **Use temporary responsibilities** for coverage
+- Clearly define responsibilities
+- Use appropriate responsibility types
+- Set end dates for temporary responsibilities
+- Maintain responsibility documentation
 
-## Troubleshooting
+## 🆘 Getting Help
 
-### Common Issues
+### Quick Help
+- Hover over field labels for help text
+- Check computed field descriptions
+- Use the search function in documentation
 
-**Can't transfer ownership:**
-- Check if you're the current owner
-- Verify you have transfer permissions
-- Ensure target user exists and is active
-
-**Assignment not working:**
-- Verify you have assignment permissions
-- Check if record supports assignments
-- Ensure target users are active
-
-**Access denied:**
-- Check your access level to the record
-- Verify you're in the right groups
-- Contact record owner or admin
-
-**Can't delegate responsibility:**
-- Ensure you're currently responsible
-- Check delegation permissions
-- Verify target users exist
-
-### Getting Help
-
-1. **Check Activity Logs** - See what happened
-2. **Contact Record Owner** - For access issues
-3. **Use Dashboard** - Monitor your workload
-4. **Admin Support** - For system-wide issues
+### Support Resources
+1. [API Reference](api-reference.md) - Technical details
+2. [Examples](examples.md) - Practical examples
+3. [Troubleshooting](troubleshooting.md) - Common issues
+4. [Developer Guide](developer-guide.md) - Customization
 
 ---
 
-*For technical issues, see the [Troubleshooting Guide](troubleshooting.md) or contact your system administrator.*
+**Next**: Explore the [Developer Guide](developer-guide.md) to learn how to integrate these mixins into your custom models.

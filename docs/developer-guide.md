@@ -1,512 +1,541 @@
 # Developer Guide
 
-## Introduction
+This guide provides technical documentation for developers who want to integrate the Comprehensive Toolkit mixins into their custom Odoo models.
 
-The Comprehensive Toolkit provides abstract mixins that can be inherited by any Odoo model to add ownership, assignment, access control, and responsibility functionality. This guide explains how to implement and customize these mixins in your own models.
+## 🏗️ Architecture Overview
 
-## Core Mixins Overview
+The Comprehensive Toolkit consists of four main abstract models (mixins) that can be inherited by any Odoo model:
 
-### Available Mixins
+- `tk.ownable.mixin` - Ownership management
+- `tk.assignable.mixin` - Assignment functionality  
+- `tk.accessible.mixin` - Access control
+- `tk.responsible.mixin` - Responsibility tracking
 
-1. **`tk.ownable.mixin`** - Adds ownership functionality
-2. **`tk.assignable.mixin`** - Adds assignment management
-3. **`tk.accessible.mixin`** - Adds access control
-4. **`tk.responsible.mixin`** - Adds responsibility management
-5. **`tk.accessible.group.mixin`** - Enhanced group management
+Each mixin is completely independent and can be used individually or in combination.
 
-## Quick Implementation
+## 🔧 Basic Implementation
 
-### Basic Example
+### Simple Model with One Mixin
 
 ```python
 from odoo import models, fields, api
 
-class MyModel(models.Model):
-    _name = 'my.model'
-    _inherit = [
-        'tk.ownable.mixin',
-        'tk.assignable.mixin',
-        'tk.accessible.mixin',
-        'tk.responsible.mixin'
-    ]
+class MyCustomModel(models.Model):
+    _name = 'my.custom.model'
+    _inherit = ['tk.ownable.mixin']  # Add ownership functionality
+    _description = 'My Custom Model with Ownership'
     
     name = fields.Char('Name', required=True)
     description = fields.Text('Description')
 ```
 
-This gives your model complete ownership, assignment, access control, and responsibility functionality with zero additional code.
+### Model with Multiple Mixins
 
-## Detailed Implementation Guide
-
-### 1. Ownership Mixin (`tk.ownable.mixin`)
-
-#### Fields Added
 ```python
-owner_id = fields.Many2one('res.users')           # Current owner
-co_owner_ids = fields.Many2many('res.users')      # Additional owners
-previous_owner_id = fields.Many2one('res.users')  # Last owner
-ownership_date = fields.Datetime()                # When ownership started
-is_owned = fields.Boolean(compute=True)           # Has owner?
-can_transfer = fields.Boolean(compute=True)       # Can current user transfer?
-can_release = fields.Boolean(compute=True)        # Can current user release?
-can_manage_co_owners = fields.Boolean(compute=True) # Can manage co-owners?
+class ProjectTask(models.Model):
+    _name = 'my.project.task'
+    _inherit = [
+        'tk.ownable.mixin',           # Ownership management
+        'tk.assignable.mixin',        # Assignment functionality
+        'tk.accessible.mixin',        # Access control
+        'tk.responsible.mixin'        # Responsibility management
+    ]
+    _description = 'Project Task with Full Toolkit'
+    
+    name = fields.Char('Task Name', required=True)
+    project_id = fields.Many2one('project.project', 'Project')
+    state = fields.Selection([
+        ('draft', 'Draft'),
+        ('in_progress', 'In Progress'), 
+        ('done', 'Done')
+    ], default='draft')
 ```
 
-#### Methods Available
+## 🎯 Ownable Mixin Implementation
+
+### Core Fields Added
+```python
+# Automatically added to your model
+owner_id = fields.Many2one('res.users', 'Owner')
+co_owner_ids = fields.Many2many('res.users', 'Co-owners')
+previous_owner_id = fields.Many2one('res.users', 'Previous Owner')
+ownership_date = fields.Datetime('Ownership Date')
+
+# Computed fields
+is_owned = fields.Boolean('Is Owned', compute='_compute_is_owned')
+can_transfer = fields.Boolean('Can Transfer', compute='_compute_can_transfer')
+is_owned_by_me = fields.Boolean('Owned by Me', compute='_compute_is_owned_by_me')
+```
+
+### Available Methods
 ```python
 # Transfer ownership
-record.transfer_ownership(new_owner_id, reason="Moving to new team")
+record.transfer_ownership(new_user_id, reason="Project handover")
 
-# Release ownership
+# Add/remove co-owners
+record.add_co_owner(user_id, reason="Collaboration")
+record.remove_co_owner(user_id, reason="No longer needed")
+record.add_multiple_co_owners([user1_id, user2_id], reason="Team expansion")
+record.remove_all_co_owners(reason="Project restructure")
+
+# Ownership lifecycle
+record.claim_ownership(reason="Taking responsibility")
 record.release_ownership(reason="No longer needed")
 
-# Claim unowned record
-record.claim_ownership(reason="Taking ownership")
-
-# Manage co-owners
-record.add_co_owner(user_id, reason="Adding team member")
-record.remove_co_owner(user_id, reason="User left team")
-record.add_multiple_co_owners([user1_id, user2_id])
+# Utility methods
+is_owner = record.is_owner_or_co_owner(user)
+all_owners = record.get_all_owners()  # Returns recordset
 ```
 
-#### Search Methods
+### Custom Ownership Logic
 ```python
-# Find owned records
-records = self.env['my.model'].search([('is_owned', '=', True)])
-
-# Find records I can transfer
-records = self.env['my.model'].search([('can_transfer', '=', True)])
-
-# Find my owned records
-records = self.env['my.model'].search([('is_owned_by_me', '=', True)])
+class CustomModel(models.Model):
+    _name = 'custom.model'
+    _inherit = ['tk.ownable.mixin']
+    
+    def custom_ownership_check(self):
+        """Add custom business logic"""
+        if self.state == 'locked':
+            raise ValidationError("Cannot change ownership of locked records")
+        return super().transfer_ownership()
+    
+    @api.model
+    def create(self, vals):
+        """Auto-assign ownership on creation"""
+        record = super().create(vals)
+        if not record.owner_id:
+            record.owner_id = self.env.user
+        return record
 ```
 
-### 2. Assignment Mixin (`tk.assignable.mixin`)
+## 📋 Assignable Mixin Implementation
 
-#### Fields Added
+### Core Fields Added
 ```python
-assigned_user_ids = fields.Many2many('res.users')  # Assigned users
-assigner_id = fields.Many2one('res.users')         # Who assigned
-assignment_date = fields.Datetime()                # When assigned
-assignment_deadline = fields.Datetime()            # Deadline
-assignment_status = fields.Selection()             # Status
-assignment_priority = fields.Selection()           # Priority
-is_assigned = fields.Boolean(compute=True)         # Is assigned?
-is_overdue = fields.Boolean(compute=True)          # Is overdue?
-can_assign = fields.Boolean(compute=True)          # Can assign?
+assigned_user_ids = fields.Many2many('res.users', 'Assigned To')
+assignment_status = fields.Selection([...], 'Assignment Status')
+assignment_priority = fields.Selection([...], 'Priority')
+assignment_deadline = fields.Datetime('Deadline')
+assignment_description = fields.Text('Description')
+
+# Computed fields
+is_assigned = fields.Boolean('Is Assigned', compute='_compute_is_assigned')
+is_overdue = fields.Boolean('Is Overdue', compute='_compute_is_overdue')
+is_assigned_to_me = fields.Boolean('Assigned to Me', compute='_compute_is_assigned_to_me')
 ```
 
-#### Methods Available
+### Available Methods
 ```python
-# Assign to users
-record.assign_to_users(
-    user_ids=[user1_id, user2_id],
-    deadline=fields.Datetime.now() + timedelta(days=7),
-    description="Please complete this task",
-    priority='high',
-    reason="Urgent project requirement"
-)
+# Assignment operations
+record.assign_to_users([user1_id, user2_id], 
+                      deadline=datetime.now() + timedelta(days=7),
+                      description="Complete feature",
+                      priority='high',
+                      reason="Urgent requirement")
 
-# Manage assignments
-record.add_assignee(user_id, reason="Adding specialist")
-record.remove_assignee(user_id, reason="Reassigning work")
-record.reassign_to_users([new_user_id])
-record.unassign_all(reason="Cancelling task")
+record.add_assignee(user_id, reason="Additional help needed")
+record.remove_assignee(user_id, reason="No longer required")
+record.unassign_all_users(reason="Task cancelled")
 
 # Status management
-record.start_assignment(reason="Beginning work")
-record.complete_assignment(reason="Task finished")
-record.cancel_assignment(reason="Requirements changed")
+record.start_assignment(reason="Work begun")
+record.complete_assignment(reason="Task finished") 
+record.cancel_assignment(reason="No longer needed")
 ```
 
-### 3. Access Control Mixin (`tk.accessible.mixin`)
-
-#### Fields Added
-```python
-access_level = fields.Selection()                  # public/internal/restricted/private
-allowed_user_ids = fields.Many2many('res.users')  # Explicit users
-allowed_group_ids = fields.Many2many('res.groups') # System groups
-custom_access_group_ids = fields.Many2many()      # Custom groups
-access_start_date = fields.Datetime()             # Access starts
-access_end_date = fields.Datetime()               # Access ends
-has_access = fields.Boolean(compute=True)         # Current user access
-can_grant_access = fields.Boolean(compute=True)   # Can grant access?
-```
-
-#### Methods Available
-```python
-# Grant access to user
-record.grant_access_to_user(
-    user_id,
-    start_date=fields.Datetime.now(),
-    end_date=fields.Datetime.now() + timedelta(days=30),
-    reason="Project collaboration"
-)
-
-# Revoke access
-record.revoke_access_from_user(user_id, reason="Project ended")
-
-# Check access
-if record._check_user_access(user):
-    # User has access
-    pass
-```
-
-### 4. Responsibility Mixin (`tk.responsible.mixin`)
-
-#### Fields Added
-```python
-responsible_user_ids = fields.Many2many('res.users')      # Primary responsible
-secondary_responsible_ids = fields.Many2many('res.users') # Secondary responsible
-responsibility_type = fields.Selection()                  # Type of responsibility
-responsibility_start_date = fields.Datetime()             # When started
-responsibility_end_date = fields.Datetime()               # When ends
-can_delegate = fields.Boolean(compute=True)               # Can delegate?
-```
-
-#### Methods Available
-```python
-# Assign responsibility
-record.assign_responsibility(
-    user_ids=[user1_id, user2_id],
-    responsibility_type='primary',
-    end_date=fields.Datetime.now() + timedelta(days=90),
-    description="Responsible for project oversight",
-    reason="Team restructuring"
-)
-
-# Delegate responsibility
-record.delegate_responsibility([new_user_id], reason="Vacation coverage")
-
-# Manage responsible users
-record.add_responsible_user(user_id, is_secondary=False)
-record.remove_responsible_user(user_id, is_secondary=True)
-```
-
-## Advanced Customization
-
-### Extending Mixin Functionality
-
-#### Override Computed Fields
-```python
-class MyModel(models.Model):
-    _name = 'my.model'
-    _inherit = ['tk.ownable.mixin']
-    
-    @api.depends('owner_id', 'state')
-    def _compute_can_transfer(self):
-        # Custom logic for transfer permissions
-        super()._compute_can_transfer()
-        for record in self:
-            if record.state == 'locked':
-                record.can_transfer = False
-```
-
-#### Custom Permission Logic
+### Smart Assignment Permissions
+The mixin includes intelligent permission checking:
 ```python
 def _compute_can_assign(self):
-    super()._compute_can_assign()
+    """Smart permission calculation"""
     for record in self:
-        # Additional business rules
-        if record.department_id.manager_id == self.env.user:
-            record.can_assign = True
-        elif record.priority == 'urgent' and not record.is_assigned:
-            record.can_assign = True
+        # Considers ownership, access levels, current assignments
+        has_ownership = record.owner_id == self.env.user
+        has_access = record._check_access_permissions()
+        is_assigned = self.env.user in record.assigned_user_ids
+        
+        record.can_assign = has_ownership or has_access or is_assigned
 ```
 
-#### Add Custom Fields
+## 🔐 Accessible Mixin Implementation
+
+### Core Fields Added
 ```python
-class MyModel(models.Model):
-    _name = 'my.model'
-    _inherit = ['tk.assignable.mixin']
+access_level = fields.Selection([
+    ('public', 'Public'),
+    ('internal', 'Internal'), 
+    ('restricted', 'Restricted'),
+    ('private', 'Private')
+], 'Access Level')
+
+allowed_user_ids = fields.Many2many('res.users', 'Allowed Users')
+allowed_group_ids = fields.Many2many('res.groups', 'Allowed Groups')
+custom_access_group_ids = fields.Many2many('tk.accessible.group', 'Custom Groups')
+
+# Time-based access
+access_start_date = fields.Datetime('Access Start Date')
+access_end_date = fields.Datetime('Access End Date')
+
+# Computed fields
+has_access = fields.Boolean('Has Access', compute='_compute_has_access')
+is_access_expired = fields.Boolean('Access Expired', compute='_compute_is_access_expired')
+```
+
+### Available Methods
+```python
+# Access management
+record.grant_access([user1_id, user2_id], reason="Review access")
+record.revoke_access([user_id], reason="No longer needed")
+record.grant_group_access(group_id, reason="Department access")
+
+# Access checking
+has_access = record.check_user_access(user)
+access_reason = record.get_access_reason(user)
+
+# Bulk operations
+record.set_access_level('restricted', reason="Security requirement")
+record.copy_access_from(other_record, reason="Same permissions needed")
+```
+
+### Custom Access Groups
+```python
+# Create custom access group
+access_group = self.env['tk.accessible.group'].create({
+    'name': 'Project Alpha Team',
+    'description': 'Team members for Project Alpha',
+    'user_ids': [(6, 0, [user1.id, user2.id, user3.id])],
+    'active': True
+})
+
+# Apply to records
+records.write({
+    'custom_access_group_ids': [(4, access_group.id)]
+})
+```
+
+## 👥 Responsible Mixin Implementation
+
+### Core Fields Added
+```python
+responsible_user_ids = fields.Many2many('res.users', 'Responsible Users')
+secondary_responsible_ids = fields.Many2many('res.users', 'Secondary Responsible')
+responsibility_type = fields.Selection([...], 'Responsibility Type')
+responsibility_start_date = fields.Datetime('Start Date')
+responsibility_end_date = fields.Datetime('End Date')
+responsibility_description = fields.Text('Description')
+
+# Computed fields
+is_responsibility_active = fields.Boolean('Active', compute='_compute_is_responsibility_active')
+can_delegate = fields.Boolean('Can Delegate', compute='_compute_can_delegate')
+```
+
+### Available Methods
+```python
+# Responsibility assignment
+record.assign_responsibility([user1_id], 
+                           responsibility_type='primary',
+                           description="Overall coordination",
+                           end_date=datetime.now() + timedelta(days=30))
+
+# Delegation
+record.delegate_responsibility(user_id, 
+                             end_date=datetime.now() + timedelta(days=7),
+                             reason="Vacation coverage")
+
+# Management
+record.add_secondary_responsible([user1_id, user2_id])
+record.remove_responsibility(user_id, reason="Role change")
+record.transfer_responsibility(old_user_id, new_user_id, reason="Staff change")
+```
+
+## 🏗️ Advanced Integration Patterns
+
+### Custom Workflow Integration
+```python
+class WorkflowModel(models.Model):
+    _name = 'workflow.model'
+    _inherit = ['tk.ownable.mixin', 'tk.assignable.mixin']
     
-    # Custom assignment fields
-    assignment_category = fields.Selection([
-        ('development', 'Development'),
-        ('testing', 'Testing'),
-        ('review', 'Review')
+    state = fields.Selection([
+        ('draft', 'Draft'),
+        ('review', 'Under Review'),
+        ('approved', 'Approved')
     ])
     
-    estimated_hours = fields.Float('Estimated Hours')
-    actual_hours = fields.Float('Actual Hours')
-```
-
-### Integration with Existing Models
-
-#### Retrofit Existing Models
-```python
-# Add to existing model
-class SaleOrder(models.Model):
-    _inherit = ['sale.order', 'tk.ownable.mixin', 'tk.assignable.mixin']
-    
-    # Existing fields remain unchanged
-    # New mixin fields are automatically added
-```
-
-#### Handle Field Conflicts
-```python
-class MyModel(models.Model):
-    _name = 'my.model'
-    _inherit = ['tk.ownable.mixin']
-    
-    # If you already have an 'owner_id' field
-    _owner_field = 'record_owner_id'  # Use different field name
-    
-    record_owner_id = fields.Many2one('res.users', string='Record Owner')
-```
-
-## View Integration
-
-### Form View Integration
-```xml
-<record id="view_my_model_form" model="ir.ui.view">
-    <field name="name">my.model.form</field>
-    <field name="model">my.model</field>
-    <field name="arch" type="xml">
-        <form>
-            <header>
-                <!-- Ownership Actions -->
-                <button name="%(comprehensive_toolkit.action_transfer_ownership_wizard)d" 
-                        string="Transfer Ownership" type="action" 
-                        invisible="not can_transfer"/>
-                
-                <!-- Assignment Actions -->
-                <button name="%(comprehensive_toolkit.action_bulk_assign_wizard)d" 
-                        string="Assign Users" type="action" 
-                        invisible="not can_assign"/>
-                
-                <!-- Access Management -->
-                <button name="%(comprehensive_toolkit.action_manage_access_wizard)d" 
-                        string="Manage Access" type="action" 
-                        invisible="not can_grant_access"/>
-                
-                <!-- Responsibility Actions -->
-                <button name="%(comprehensive_toolkit.action_delegate_responsibility_wizard)d" 
-                        string="Delegate" type="action" 
-                        invisible="not can_delegate"/>
-            </header>
-            <sheet>
-                <!-- Your existing fields -->
-                <group>
-                    <field name="name"/>
-                    <field name="description"/>
-                </group>
-                
-                <notebook>
-                    <!-- Ownership Tab -->
-                    <page string="Ownership">
-                        <group>
-                            <field name="owner_id"/>
-                            <field name="co_owner_ids" widget="many2many_tags"/>
-                            <field name="ownership_date"/>
-                        </group>
-                    </page>
-                    
-                    <!-- Assignment Tab -->
-                    <page string="Assignment">
-                        <group>
-                            <field name="assigned_user_ids" widget="many2many_tags"/>
-                            <field name="assignment_deadline"/>
-                            <field name="assignment_status"/>
-                            <field name="assignment_priority"/>
-                        </group>
-                    </page>
-                    
-                    <!-- Access Control Tab -->
-                    <page string="Access Control">
-                        <group>
-                            <field name="access_level"/>
-                            <field name="allowed_user_ids" widget="many2many_tags"/>
-                            <field name="custom_access_group_ids" widget="many2many_tags"/>
-                        </group>
-                    </page>
-                    
-                    <!-- Responsibility Tab -->
-                    <page string="Responsibility">
-                        <group>
-                            <field name="responsible_user_ids" widget="many2many_tags"/>
-                            <field name="secondary_responsible_ids" widget="many2many_tags"/>
-                            <field name="responsibility_type"/>
-                        </group>
-                    </page>
-                </notebook>
-            </sheet>
-        </form>
-    </field>
-</record>
-```
-
-### Search View Integration
-```xml
-<record id="view_my_model_search" model="ir.ui.view">
-    <field name="name">my.model.search</field>
-    <field name="model">my.model</field>
-    <field name="arch" type="xml">
-        <search>
-            <field name="name"/>
-            
-            <!-- Mixin-based filters -->
-            <filter string="My Records" name="owned_by_me" 
-                    domain="[('owner_id', '=', uid)]"/>
-            <filter string="Assigned to Me" name="assigned_to_me" 
-                    domain="[('assigned_user_ids', 'in', [uid])]"/>
-            <filter string="My Responsibilities" name="responsible_me" 
-                    domain="[('responsible_user_ids', 'in', [uid])]"/>
-            <filter string="Overdue" name="overdue" 
-                    domain="[('is_overdue', '=', True)]"/>
-            
-            <group expand="1" string="Group By">
-                <filter string="Owner" name="group_owner" 
-                        context="{'group_by': 'owner_id'}"/>
-                <filter string="Assignment Status" name="group_assignment" 
-                        context="{'group_by': 'assignment_status'}"/>
-            </group>
-        </search>
-    </field>
-</record>
-```
-
-## Security Considerations
-
-### Access Rights
-The mixins respect Odoo's security model. Ensure your model has appropriate access rules:
-
-```csv
-id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
-access_my_model,my.model,model_my_model,base.group_user,1,1,1,1
-access_my_model_manager,my.model manager,model_my_model,base.group_system,1,1,1,1
-```
-
-### Record Rules
-Use record rules for additional security:
-
-```xml
-<record id="my_model_rule_owner" model="ir.rule">
-    <field name="name">My Model: Owner Access</field>
-    <field name="model_id" ref="model_my_model"/>
-    <field name="domain_force">[
-        '|', ('owner_id', '=', user.id),
-        '|', ('co_owner_ids', 'in', [user.id]),
-        ('access_level', 'in', ['public', 'internal'])
-    ]</field>
-    <field name="groups" eval="[(4, ref('base.group_user'))]"/>
-</record>
-```
-
-## Performance Optimization
-
-### Database Indexing
-Add indexes for frequently searched fields:
-
-```python
-class MyModel(models.Model):
-    _name = 'my.model'
-    _inherit = ['tk.ownable.mixin']
-    
-    owner_id = fields.Many2one('res.users', index=True)
-    assignment_deadline = fields.Datetime(index=True)
-```
-
-### Computed Field Optimization
-```python
-@api.depends('owner_id', 'co_owner_ids')
-def _compute_is_owned_by_me(self):
-    # Optimize for large datasets
-    user_id = self.env.user.id
-    for record in self:
-        record.is_owned_by_me = (
-            record.owner_id.id == user_id or 
-            user_id in record.co_owner_ids.ids
+    def action_submit_for_review(self):
+        """Custom workflow action with toolkit integration"""
+        # Assign to reviewers
+        reviewer_group = self.env.ref('my_module.group_reviewers')
+        reviewers = reviewer_group.users
+        
+        self.assign_to_users(
+            reviewers.ids,
+            deadline=fields.Datetime.now() + timedelta(days=3),
+            description="Review and approve document",
+            priority='normal',
+            reason="Workflow submission"
         )
+        
+        self.state = 'review'
 ```
 
-## Testing
+### Smart Default Values
+```python
+class SmartModel(models.Model):
+    _name = 'smart.model'
+    _inherit = ['tk.accessible.mixin', 'tk.responsible.mixin']
+    
+    @api.model
+    def create(self, vals):
+        """Set smart defaults on creation"""
+        record = super().create(vals)
+        
+        # Auto-set access level based on context
+        if self.env.context.get('public_create'):
+            record.access_level = 'public'
+        elif self.env.context.get('department_create'):
+            record.access_level = 'restricted'
+            record.grant_group_access(self.env.user.groups_id[0].id)
+        
+        # Auto-assign responsibility to creator
+        record.assign_responsibility(
+            [self.env.user.id],
+            responsibility_type='primary',
+            description="Record creator"
+        )
+        
+        return record
+```
 
-### Unit Tests
+### Permission Override Patterns
+```python
+class SecureModel(models.Model):
+    _name = 'secure.model'
+    _inherit = ['tk.accessible.mixin']
+    
+    def _compute_can_grant_access(self):
+        """Override default permission logic"""
+        super()._compute_can_grant_access()
+        for record in self:
+            # Add custom business rules
+            if record.security_level == 'classified':
+                record.can_grant_access = self.env.user.has_group('base.group_system')
+            elif record.department_id != self.env.user.department_id:
+                record.can_grant_access = False
+```
+
+## 📊 Dashboard Integration
+
+### Custom Dashboard Widgets
+```python
+class CustomDashboard(models.TransientModel):
+    _inherit = 'tk.comprehensive.dashboard'
+    
+    # Add custom statistics
+    my_custom_count = fields.Integer(
+        'Custom Count',
+        compute='_compute_custom_statistics'
+    )
+    
+    def _compute_custom_statistics(self):
+        for dashboard in self:
+            # Add your custom logic
+            count = self.env['your.model'].search_count([
+                ('assigned_user_ids', 'in', self.env.user.id),
+                ('state', '=', 'in_progress')
+            ])
+            dashboard.my_custom_count = count
+```
+
+## 🔍 Search and Domain Helpers
+
+### Smart Domain Functions
+```python
+def get_accessible_domain(self, model_name):
+    """Get domain for records user can access"""
+    domain = []
+    
+    # Public records
+    domain.append('|')
+    domain.append(('access_level', '=', 'public'))
+    
+    # Internal records (if internal user)
+    if not self.env.user.share:
+        domain.append('|')
+        domain.append(('access_level', '=', 'internal'))
+    
+    # Records user has explicit access to
+    domain.append('|')
+    domain.append(('allowed_user_ids', 'in', self.env.user.id))
+    
+    # Records owned by user
+    domain.append(('owner_id', '=', self.env.user.id))
+    
+    return domain
+```
+
+### Custom Search Methods
+```python
+class CustomSearch(models.Model):
+    _name = 'custom.search'
+    _inherit = ['tk.ownable.mixin', 'tk.assignable.mixin']
+    
+    @api.model
+    def search_my_work(self):
+        """Find all records related to current user"""
+        domain = [
+            '|', '|', '|',
+            ('owner_id', '=', self.env.user.id),
+            ('co_owner_ids', 'in', self.env.user.id),
+            ('assigned_user_ids', 'in', self.env.user.id),
+            ('responsible_user_ids', 'in', self.env.user.id)
+        ]
+        return self.search(domain)
+```
+
+## 🧪 Testing
+
+### Unit Test Examples
 ```python
 from odoo.tests.common import TransactionCase
+from odoo.exceptions import AccessError, ValidationError
 
-class TestMyModel(TransactionCase):
+class TestToolkitMixins(TransactionCase):
     
     def setUp(self):
         super().setUp()
-        self.model = self.env['my.model']
-        self.user1 = self.env.ref('base.user_demo')
-        self.user2 = self.env.ref('base.user_admin')
-    
-    def test_ownership_transfer(self):
-        record = self.model.create({'name': 'Test Record'})
+        self.user1 = self.env['res.users'].create({
+            'name': 'Test User 1',
+            'login': 'testuser1'
+        })
+        self.user2 = self.env['res.users'].create({
+            'name': 'Test User 2', 
+            'login': 'testuser2'
+        })
         
-        # Test initial ownership
-        self.assertEqual(record.owner_id, self.env.user)
+    def test_ownership_transfer(self):
+        """Test ownership transfer functionality"""
+        record = self.env['your.model'].create({
+            'name': 'Test Record',
+            'owner_id': self.user1.id
+        })
         
         # Test transfer
-        record.transfer_ownership(self.user1.id, reason="Test transfer")
-        self.assertEqual(record.owner_id, self.user1)
-        self.assertEqual(record.previous_owner_id, self.env.user)
-    
-    def test_assignment(self):
-        record = self.model.create({'name': 'Test Record'})
+        record.with_user(self.user1).transfer_ownership(
+            self.user2.id, 
+            reason="Test transfer"
+        )
         
-        # Test assignment
-        record.assign_to_users([self.user1.id, self.user2.id])
-        self.assertTrue(record.is_assigned)
-        self.assertIn(self.user1, record.assigned_user_ids)
-        self.assertIn(self.user2, record.assigned_user_ids)
+        self.assertEqual(record.owner_id, self.user2)
+        self.assertEqual(record.previous_owner_id, self.user1)
+        
+    def test_assignment_permissions(self):
+        """Test assignment permission logic"""
+        record = self.env['your.model'].create({
+            'name': 'Test Record',
+            'owner_id': self.user1.id
+        })
+        
+        # Owner should be able to assign
+        self.assertTrue(record.with_user(self.user1).can_assign)
+        
+        # Non-owner should not
+        self.assertFalse(record.with_user(self.user2).can_assign)
 ```
 
-## Migration and Upgrades
+## 🔧 Performance Optimization
 
-### Adding Mixins to Existing Models
+### Efficient Queries
 ```python
-# In migration script
+# Good: Use computed stored fields
+@api.depends('assigned_user_ids')
+def _compute_assigned_user_count(self):
+    for record in self:
+        record.assigned_user_count = len(record.assigned_user_ids)
+
+# Good: Batch operations
+records = self.env['your.model'].search([])
+records.assign_to_users([user.id], reason="Batch assignment")
+
+# Avoid: N+1 queries in loops
+for record in records:
+    record.assign_to_users([user.id])  # Bad - creates many queries
+```
+
+### Indexing for Performance
+```python
+# Add custom indexes in your model
+class CustomModel(models.Model):
+    _name = 'custom.model'
+    _inherit = ['tk.ownable.mixin']
+    
+    def init(self):
+        # Add database indexes for better performance
+        tools.create_index(self._cr, 'custom_model_owner_state_idx', 
+                          self._table, ['owner_id', 'state'])
+```
+
+## 🚀 Deployment Considerations
+
+### Migration Scripts
+```python
 def migrate(cr, version):
-    # Add mixin fields to existing model
+    """Migration script for existing data"""
     if not version:
         return
-    
-    # Add owner_id field with default value
+        
+    # Migrate existing ownership data
     cr.execute("""
-        ALTER TABLE my_existing_table 
-        ADD COLUMN owner_id INTEGER 
-        REFERENCES res_users(id)
+        UPDATE your_table 
+        SET owner_id = old_owner_field 
+        WHERE old_owner_field IS NOT NULL
     """)
     
-    # Set current user as default owner for existing records
+    # Set default access levels
     cr.execute("""
-        UPDATE my_existing_table 
-        SET owner_id = 1 
-        WHERE owner_id IS NULL
+        UPDATE your_table 
+        SET access_level = 'internal' 
+        WHERE access_level IS NULL
     """)
 ```
 
-## Best Practices
+### Configuration Management
+```python
+# config/settings.py
+class ComprehensiveToolkitSettings(models.TransientModel):
+    _inherit = 'res.config.settings'
+    
+    default_access_level = fields.Selection([...], 
+                                          string="Default Access Level")
+    auto_assign_ownership = fields.Boolean("Auto-assign Ownership")
+    
+    def set_values(self):
+        super().set_values()
+        params = self.env['ir.config_parameter'].sudo()
+        params.set_param('toolkit.default_access_level', self.default_access_level)
+        params.set_param('toolkit.auto_assign_ownership', self.auto_assign_ownership)
+```
 
-### 1. Field Naming
-- Use mixin fields as-is when possible
-- Override field names only when conflicts exist
-- Document any customizations clearly
+## 📚 Best Practices
 
-### 2. Permission Logic
-- Always call `super()` when overriding computed methods
-- Add business logic after calling super
-- Document permission rules clearly
+### Code Organization
+- Keep mixin-specific logic in separate methods
+- Use descriptive method names with toolkit prefixes
+- Document custom overrides clearly
+- Follow Odoo coding standards
 
-### 3. Performance
-- Index frequently searched fields
-- Use proper domain optimization
-- Consider batch operations for bulk changes
+### Performance Guidelines
+- Use stored computed fields for frequently accessed data
+- Implement efficient search domains
+- Batch operations when possible
+- Add appropriate database indexes
 
-### 4. User Experience
-- Include mixin tabs in form views
-- Add appropriate filters in search views
-- Use clear button labels and help text
-
-### 5. Testing
-- Test all mixin functionality
-- Test permission logic thoroughly
-- Include edge cases in tests
+### Security Considerations
+- Always validate user permissions in custom methods
+- Use sudo() carefully and document security implications
+- Implement proper access controls for sensitive operations
+- Regular security audits of access permissions
 
 ---
 
-*For more examples, see the [Examples Guide](examples.md) or check the included example models in the module.*
+**Next**: Check out the [API Reference](api-reference.md) for complete method documentation and the [Examples](examples.md) for more practical implementation patterns.

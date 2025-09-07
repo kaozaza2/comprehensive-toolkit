@@ -1,31 +1,73 @@
 # Installation Guide
 
-## System Requirements
+This guide provides step-by-step instructions for installing and configuring the Comprehensive Toolkit module in your Odoo environment.
 
-- **Odoo Version**: 16.0 or higher
-- **Python**: 3.8+
-- **Dependencies**: `base`, `web` (automatically installed)
+## 🔧 System Requirements
 
-## Installation Methods
+### Odoo Version Support
+- **Odoo 16.0+** (Primary support)
+- **Python 3.8+**
+- **PostgreSQL 12+** (recommended)
+
+### Dependencies
+The module requires the following Odoo core modules:
+- `base` (User management, core functionality)
+- `web` (Web interface components)
+
+## 📥 Installation Methods
 
 ### Method 1: Manual Installation
 
 1. **Download the Module**
    ```bash
+   # Clone from repository
    git clone https://github.com/kaozaza2/comprehensive_toolkit.git
+   
+   # Or download and extract ZIP file
    ```
 
 2. **Copy to Addons Directory**
    ```bash
+   # Copy to your Odoo addons directory
    cp -r comprehensive_toolkit /path/to/odoo/addons/
+   
+   # Or create symbolic link
+   ln -s /path/to/comprehensive_toolkit /path/to/odoo/addons/
    ```
 
-3. **Update Apps List**
-   - Go to Apps → Update Apps List
-   - Search for "Comprehensive Toolkit"
-   - Click Install
+3. **Update Addons Path**
+   Ensure your Odoo configuration includes the addons path:
+   ```ini
+   # In odoo.conf
+   addons_path = /path/to/odoo/addons,/path/to/custom/addons
+   ```
 
-### Method 2: Development Installation
+4. **Restart Odoo Server**
+   ```bash
+   # Restart with update
+   ./odoo-bin -u all -d your_database --stop-after-init
+   ./odoo-bin -d your_database
+   ```
+
+### Method 2: Docker Installation
+
+1. **Add to Docker Compose**
+   ```yaml
+   services:
+     odoo:
+       image: odoo:16.0
+       volumes:
+         - ./comprehensive_toolkit:/mnt/extra-addons/comprehensive_toolkit
+       environment:
+         - ADDONS_PATH=/mnt/extra-addons
+   ```
+
+2. **Build and Run**
+   ```bash
+   docker-compose up -d
+   ```
+
+### Method 3: Development Installation
 
 1. **Clone Repository**
    ```bash
@@ -33,181 +75,239 @@
    cd comprehensive_toolkit
    ```
 
-2. **Install in Development Mode**
+2. **Set Up Development Environment**
    ```bash
-   # Add to Odoo configuration
-   --addons-path=/path/to/comprehensive_toolkit,/path/to/other/addons
+   # Create virtual environment
+   python3 -m venv venv
+   source venv/bin/activate
+   
+   # Install development dependencies
+   pip install -r requirements-dev.txt
    ```
 
-3. **Restart Odoo Server**
-   ```bash
-   ./odoo-bin -u comprehensive_toolkit -d your_database
-   ```
+## ⚙️ Configuration
 
-## Post-Installation Setup
+### 1. Install the Module
 
-### 1. Verify Installation
+1. **Access Odoo Interface**
+   - Navigate to **Apps** menu
+   - Click **Update Apps List**
+   - Search for "Comprehensive Toolkit"
+   - Click **Install**
 
-After installation, verify the module is working:
+2. **Verify Installation**
+   - Check for new menu: **Comprehensive Toolkit**
+   - Verify dashboard access
+   - Test mixin functionality
 
-1. Navigate to **Comprehensive Toolkit** menu
-2. Check that all submenu items are accessible:
-   - Dashboard
-   - Example Models
-   - Access Management
-   - Activity Logs
-   - Quick Actions
+### 2. Initial Setup
 
-### 2. Set Up User Permissions
+#### Security Groups Configuration
 
-Configure user access levels:
+The module creates three security groups automatically:
+
+1. **Comprehensive Toolkit / Manager**
+   - Full access to all features
+   - Can manage all logs and configurations
+   - Can perform bulk operations
+
+2. **Comprehensive Toolkit / User**
+   - Standard user access
+   - Can use all mixin features
+   - Limited administrative access
+
+3. **Comprehensive Toolkit / Viewer**
+   - Read-only access
+   - Can view logs and statistics
+   - Cannot modify records
+
+#### Assign Users to Groups
+
+1. Navigate to **Settings → Users & Companies → Users**
+2. Edit user accounts
+3. In **Access Rights** tab, assign appropriate toolkit groups
+4. Save changes
+
+### 3. Database Setup
+
+#### Required Tables
+The module automatically creates the following tables:
+- `tk_ownership_log` - Ownership change tracking
+- `tk_assignment_log` - Assignment activity logging
+- `tk_access_log` - Access permission changes
+- `tk_responsibility_log` - Responsibility tracking
+- `tk_accessible_group` - Custom access groups
+
+#### Data Migration (Existing Systems)
+
+If upgrading from a previous version or migrating data:
 
 ```python
-# Basic Users - Can use all mixin functionality
-Group: base.group_user
-
-# System Administrators - Full access including log deletion
-Group: base.group_system
+# Example migration script
+def migrate_existing_data(env):
+    # Migrate existing ownership data
+    existing_records = env['your.existing.model'].search([])
+    for record in existing_records:
+        if hasattr(record, 'owner_field'):
+            record.owner_id = record.owner_field
+    
+    # Update access levels
+    records_to_update = env['your.model'].search([])
+    records_to_update.write({'access_level': 'internal'})
 ```
 
-### 3. Configure Security Groups
+## 🔐 Security Configuration
 
-The module automatically creates security rules for:
-- **Regular Users**: Read/Write/Create access to most models
-- **System Admins**: Full access including deletion rights
-- **Log Protection**: Users cannot delete audit logs (admins can)
-
-### 4. Test Example Models
-
-Test the installation with provided examples:
-
-1. Go to **Comprehensive Toolkit → Example Models → Project Tasks**
-2. Create a test task
-3. Verify all mixin functionality works:
-   - Ownership management
-   - Assignment features
-   - Access control
-   - Responsibility delegation
-
-## Configuration Options
-
-### Database Configuration
-
-No special database configuration required. The module creates its own tables automatically.
-
-### Server Configuration
-
-Add to `odoo.conf` if needed:
-```ini
-[options]
-# No special configuration required for this module
-```
-
-### Environment Variables
-
-No special environment variables required.
-
-## Upgrade Instructions
-
-### From Previous Versions
-
-1. **Backup Database**
-   ```bash
-   pg_dump your_database > backup_before_upgrade.sql
-   ```
-
-2. **Update Module Files**
-   ```bash
-   git pull origin main
-   ```
-
-3. **Upgrade Module**
-   ```bash
-   ./odoo-bin -u comprehensive_toolkit -d your_database
-   ```
-
-4. **Verify Upgrade**
-   - Check logs for any errors
-   - Test key functionality
-   - Verify data integrity
-
-### Migration Notes
-
-- **v1.0.0**: Initial release - no migration needed
-- **Future versions**: Migration scripts will be provided as needed
-
-## Troubleshooting Installation
-
-### Common Issues
-
-1. **Module Not Found**
-   ```
-   Error: Module 'comprehensive_toolkit' not found
-   ```
-   **Solution**: Ensure module is in correct addons path and restart server
-
-2. **Permission Denied**
-   ```
-   Error: Permission denied accessing models
-   ```
-   **Solution**: Update apps list and check user groups
-
-3. **Database Migration Errors**
-   ```
-   Error: Column 'owner_id' already exists
-   ```
-   **Solution**: Check for conflicting modules with similar fields
-
-### Debug Mode
-
-Enable debug mode to see detailed error messages:
-```
-http://your-domain/web?debug=1
-```
-
-### Log Analysis
-
-Check Odoo logs for installation issues:
+### File Permissions
+Ensure proper file permissions for the module:
 ```bash
-tail -f /var/log/odoo/odoo.log
+# Set ownership
+chown -R odoo:odoo /path/to/comprehensive_toolkit
+
+# Set permissions
+chmod -R 644 /path/to/comprehensive_toolkit
+chmod 755 /path/to/comprehensive_toolkit
 ```
 
-## Uninstallation
+### Database Permissions
+Grant necessary database permissions:
+```sql
+-- Grant permissions to Odoo database user
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO odoo_user;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO odoo_user;
+```
 
-### Clean Uninstall
+## 📊 Post-Installation Verification
 
-1. **Remove Module Data**
-   - Go to Apps → Comprehensive Toolkit
-   - Click Uninstall
-   - Confirm data removal
+### 1. Functionality Tests
 
-2. **Manual Cleanup** (if needed)
-   ```sql
-   -- Remove module tables (use with caution)
-   DROP TABLE IF EXISTS tk_ownership_log CASCADE;
-   DROP TABLE IF EXISTS tk_assignment_log CASCADE;
-   DROP TABLE IF EXISTS tk_access_log CASCADE;
-   DROP TABLE IF EXISTS tk_responsibility_log CASCADE;
-   ```
+#### Test Ownership Features
+```python
+# Create test record
+test_record = env['tk.project.task'].create({'name': 'Test Task'})
 
-### Keep Data
+# Test ownership transfer
+test_record.transfer_ownership(other_user.id, reason="Installation test")
 
-To uninstall but keep data:
-1. Disable the module instead of uninstalling
-2. Data will remain in database for future use
+# Verify logging
+logs = env['tk.ownership.log'].search([('res_id', '=', test_record.id)])
+assert len(logs) > 0
+```
 
-## Verification Checklist
+#### Test Assignment Features
+```python
+# Test assignment
+test_record.assign_to_users([user1.id, user2.id], reason="Test assignment")
 
-After installation, verify:
+# Verify assignment status
+assert test_record.assignment_status == 'assigned'
+assert user1 in test_record.assigned_user_ids
+```
 
-- [ ] Module appears in Apps list
-- [ ] Main menu "Comprehensive Toolkit" is visible
-- [ ] Dashboard loads without errors
-- [ ] Example models can be created
-- [ ] All wizards open correctly
-- [ ] Security permissions are working
-- [ ] Logs are being created for operations
+### 2. Dashboard Verification
+1. Navigate to **Comprehensive Toolkit → Dashboard**
+2. Verify statistics are displaying correctly
+3. Check date filters are working
+4. Confirm user-specific counters are accurate
+
+### 3. Log Verification
+1. Navigate to **Comprehensive Toolkit → Logs**
+2. Check all log types are accessible:
+   - Ownership Logs
+   - Assignment Logs
+   - Access Logs
+   - Responsibility Logs
+
+## 🚨 Troubleshooting
+
+### Common Installation Issues
+
+#### Module Not Appearing in Apps List
+```bash
+# Update apps list manually
+./odoo-bin -u base -d your_database --stop-after-init
+
+# Check addons path
+./odoo-bin --addons-path=/your/path --stop-after-init
+```
+
+#### Permission Errors
+```bash
+# Fix file permissions
+sudo chown -R odoo:odoo /path/to/module
+sudo chmod -R 755 /path/to/module
+```
+
+#### Database Errors
+```sql
+-- Check if tables exist
+SELECT table_name FROM information_schema.tables 
+WHERE table_schema = 'public' AND table_name LIKE 'tk_%';
+
+-- Recreate missing tables if needed
+```
+
+#### Import Errors
+Check Python import paths and dependencies:
+```python
+# Test imports
+try:
+    from odoo import models, fields, api
+    print("Odoo imports successful")
+except ImportError as e:
+    print(f"Import error: {e}")
+```
+
+### Performance Optimization
+
+#### Database Indexing
+```sql
+-- Add indexes for better performance
+CREATE INDEX IF NOT EXISTS idx_tk_ownership_log_res_id 
+ON tk_ownership_log(model_name, res_id);
+
+CREATE INDEX IF NOT EXISTS idx_tk_assignment_log_date 
+ON tk_assignment_log(create_date);
+```
+
+#### Cache Configuration
+```ini
+# In odoo.conf
+max_cron_threads = 2
+db_maxconn = 64
+limit_memory_hard = 2684354560
+limit_memory_soft = 2147483648
+```
+
+## 🔄 Updates and Upgrades
+
+### Updating the Module
+```bash
+# Pull latest changes
+git pull origin main
+
+# Update in Odoo
+./odoo-bin -u comprehensive_toolkit -d your_database --stop-after-init
+```
+
+### Backup Before Updates
+```bash
+# Backup database
+pg_dump your_database > backup_$(date +%Y%m%d_%H%M%S).sql
+
+# Backup files
+tar -czf module_backup_$(date +%Y%m%d_%H%M%S).tar.gz comprehensive_toolkit/
+```
+
+## 📞 Support
+
+If you encounter issues during installation:
+
+1. Check the [Troubleshooting Guide](troubleshooting.md)
+2. Review Odoo logs: `/var/log/odoo/odoo.log`
+3. Verify system requirements
+4. Check GitHub issues: [https://github.com/kaozaza2/comprehensive_toolkit/issues](https://github.com/kaozaza2/comprehensive_toolkit/issues)
 
 ---
 
-*For installation support, check the [Troubleshooting Guide](troubleshooting.md) or contact support.*
+**Next Steps**: After successful installation, proceed to the [User Guide](user-guide.md) for detailed usage instructions.

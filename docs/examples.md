@@ -1,34 +1,28 @@
-# Examples and Use Cases
+# Examples
 
-## Introduction
+Practical examples and implementation patterns for the Comprehensive Toolkit mixins.
 
-This guide provides practical examples of implementing and using the Comprehensive Toolkit mixins in real-world scenarios. Each example includes complete code samples and explanations.
+## 🚀 Quick Start Examples
 
-## Example 1: Project Task Management
-
-### Model Implementation
+### Basic Project Task Model
 
 ```python
 from odoo import models, fields, api, _
-from odoo.exceptions import ValidationError
+from datetime import timedelta
 
 class ProjectTask(models.Model):
-    _name = 'project.task.enhanced'
-    _description = 'Enhanced Project Task'
+    _name = 'example.project.task'
     _inherit = [
         'tk.ownable.mixin',
-        'tk.assignable.mixin',
+        'tk.assignable.mixin', 
         'tk.accessible.mixin',
         'tk.responsible.mixin'
     ]
-    _order = 'priority desc, create_date desc'
-
-    # Basic task fields
-    name = fields.Char('Task Name', required=True, tracking=True)
-    description = fields.Html('Description')
-    project_id = fields.Many2one('project.project', string='Project', required=True)
+    _description = 'Project Task with Full Toolkit'
     
-    # Task-specific fields
+    name = fields.Char('Task Name', required=True)
+    description = fields.Text('Description')
+    project_id = fields.Many2one('project.project', 'Project')
     state = fields.Selection([
         ('draft', 'Draft'),
         ('in_progress', 'In Progress'),
@@ -38,774 +32,762 @@ class ProjectTask(models.Model):
     ], default='draft', tracking=True)
     
     priority = fields.Selection([
-        ('0', 'Low'),
-        ('1', 'Normal'),
-        ('2', 'High'),
-        ('3', 'Very High')
-    ], default='1', tracking=True)
-    
-    # Progress tracking
-    progress = fields.Float('Progress (%)', default=0.0)
-    estimated_hours = fields.Float('Estimated Hours')
-    spent_hours = fields.Float('Spent Hours')
-    
-    # Dependencies
-    depends_on_ids = fields.Many2many(
-        'project.task.enhanced',
-        'task_dependency_rel',
-        'task_id', 'depends_on_id',
-        string='Depends On'
-    )
-    
-    # Custom business logic
-    can_start = fields.Boolean('Can Start', compute='_compute_can_start')
-    is_blocked = fields.Boolean('Is Blocked', compute='_compute_is_blocked')
-    
-    @api.depends('depends_on_ids.state')
-    def _compute_is_blocked(self):
-        for task in self:
-            task.is_blocked = any(
-                dep.state not in ['done', 'cancelled'] 
-                for dep in task.depends_on_ids
-            )
-    
-    @api.depends('is_blocked', 'state', 'is_assigned')
-    def _compute_can_start(self):
-        for task in self:
-            task.can_start = (
-                not task.is_blocked and 
-                task.state == 'draft' and 
-                task.is_assigned
-            )
-    
-    def action_start(self):
-        """Start working on the task"""
-        if not self.can_start:
-            raise ValidationError(_("Task cannot be started"))
-        
-        self.write({
-            'state': 'in_progress',
-            'progress': 5.0
-        })
-        
-        # Start assignment tracking
-        self.start_assignment(reason="Task started")
-        
-        return True
-    
-    def action_submit_for_review(self):
-        """Submit task for review"""
-        if self.state != 'in_progress':
-            raise ValidationError(_("Only in-progress tasks can be submitted for review"))
-        
-        self.write({
-            'state': 'review',
-            'progress': 90.0
-        })
-        
-        # Assign to project manager for review
-        if self.project_id.user_id:
-            self.assign_to_users(
-                [self.project_id.user_id.id],
-                reason="Task submitted for review"
-            )
-    
-    def action_approve(self):
-        """Approve and complete the task"""
-        if self.state != 'review':
-            raise ValidationError(_("Only tasks under review can be approved"))
-        
-        self.write({
-            'state': 'done',
-            'progress': 100.0
-        })
-        
-        self.complete_assignment(reason="Task approved and completed")
-```
-
-### View Implementation
-
-```xml
-<!-- Form View -->
-<record id="view_project_task_enhanced_form" model="ir.ui.view">
-    <field name="name">project.task.enhanced.form</field>
-    <field name="model">project.task.enhanced</field>
-    <field name="arch" type="xml">
-        <form>
-            <header>
-                <!-- Workflow buttons -->
-                <button name="action_start" string="Start Task" type="object" 
-                        class="btn-primary" invisible="not can_start"/>
-                <button name="action_submit_for_review" string="Submit for Review" 
-                        type="object" class="btn-info" invisible="state != 'in_progress'"/>
-                <button name="action_approve" string="Approve" type="object" 
-                        class="btn-success" invisible="state != 'review'"/>
-                
-                <!-- Mixin actions -->
-                <button name="%(comprehensive_toolkit.action_transfer_ownership_wizard)d" 
-                        string="Transfer Ownership" type="action" 
-                        invisible="not can_transfer"/>
-                <button name="%(comprehensive_toolkit.action_bulk_assign_wizard)d" 
-                        string="Assign Users" type="action" 
-                        invisible="not can_assign"/>
-                <button name="%(comprehensive_toolkit.action_delegate_responsibility_wizard)d" 
-                        string="Delegate" type="action" 
-                        invisible="not can_delegate"/>
-                
-                <field name="state" widget="statusbar" 
-                       statusbar_visible="draft,in_progress,review,done"/>
-            </header>
-            <sheet>
-                <div class="oe_button_box" name="button_box">
-                    <button name="action_view_dependencies" type="object" 
-                            class="oe_stat_button" icon="fa-link">
-                        <field name="depends_on_ids" string="Dependencies" widget="statinfo"/>
-                    </button>
-                </div>
-                
-                <group>
-                    <group>
-                        <field name="name"/>
-                        <field name="project_id"/>
-                        <field name="priority"/>
-                        <field name="progress" widget="progressbar"/>
-                    </group>
-                    <group>
-                        <field name="estimated_hours"/>
-                        <field name="spent_hours"/>
-                        <field name="can_start"/>
-                        <field name="is_blocked"/>
-                    </group>
-                </group>
-                
-                <field name="description"/>
-                
-                <notebook>
-                    <!-- Task Details -->
-                    <page string="Dependencies">
-                        <field name="depends_on_ids"/>
-                    </page>
-                    
-                    <!-- Ownership Management -->
-                    <page string="Ownership">
-                        <group>
-                            <field name="owner_id"/>
-                            <field name="co_owner_ids" widget="many2many_tags"/>
-                            <field name="ownership_date"/>
-                        </group>
-                    </page>
-                    
-                    <!-- Assignment Details -->
-                    <page string="Assignment">
-                        <group>
-                            <field name="assigned_user_ids" widget="many2many_tags"/>
-                            <field name="assignment_deadline"/>
-                            <field name="assignment_status"/>
-                            <field name="assignment_priority"/>
-                        </group>
-                        <field name="assignment_description"/>
-                    </page>
-                    
-                    <!-- Access Control -->
-                    <page string="Access">
-                        <group>
-                            <field name="access_level"/>
-                            <field name="allowed_user_ids" widget="many2many_tags"/>
-                            <field name="custom_access_group_ids" widget="many2many_tags"/>
-                        </group>
-                    </page>
-                    
-                    <!-- Responsibility -->
-                    <page string="Responsibility">
-                        <group>
-                            <field name="responsible_user_ids" widget="many2many_tags"/>
-                            <field name="secondary_responsible_ids" widget="many2many_tags"/>
-                            <field name="responsibility_type"/>
-                        </group>
-                    </page>
-                </notebook>
-            </sheet>
-            <div class="oe_chatter">
-                <field name="message_follower_ids"/>
-                <field name="activity_ids"/>
-                <field name="message_ids"/>
-            </div>
-        </form>
-    </field>
-</record>
-```
-
-### Usage Scenarios
-
-**Scenario 1: Project Manager assigns tasks**
-```python
-# Create task
-task = env['project.task.enhanced'].create({
-    'name': 'Implement user authentication',
-    'project_id': project.id,
-    'description': 'Add OAuth2 authentication system',
-    'estimated_hours': 40,
-    'priority': '2'
-})
-
-# Assign to developers
-task.assign_to_users(
-    user_ids=[dev1.id, dev2.id],
-    deadline=fields.Datetime.now() + timedelta(days=14),
-    description="Please implement OAuth2 authentication",
-    priority='high',
-    reason="Critical feature for release"
-)
-
-# Set responsibility
-task.assign_responsibility(
-    user_ids=[tech_lead.id],
-    responsibility_type='primary',
-    description="Technical oversight and code review"
-)
-```
-
-**Scenario 2: Developer workflow**
-```python
-# Developer starts task
-task.action_start()
-
-# Work in progress...
-task.progress = 50
-
-# Submit for review
-task.action_submit_for_review()
-
-# Tech lead reviews and approves
-task.action_approve()
-```
-
-## Example 2: Document Management System
-
-### Model Implementation
-
-```python
-class Document(models.Model):
-    _name = 'document.management'
-    _description = 'Document Management'
-    _inherit = [
-        'tk.ownable.mixin',
-        'tk.accessible.mixin',
-        'tk.accessible.group.mixin'
-    ]
-    
-    name = fields.Char('Document Title', required=True)
-    content = fields.Html('Content')
-    document_type = fields.Selection([
-        ('policy', 'Policy'),
-        ('procedure', 'Procedure'),
-        ('manual', 'Manual'),
-        ('specification', 'Specification')
-    ], required=True)
-    
-    version = fields.Char('Version', default='1.0')
-    status = fields.Selection([
-        ('draft', 'Draft'),
-        ('review', 'Under Review'),
-        ('approved', 'Approved'),
-        ('archived', 'Archived')
-    ], default='draft')
-    
-    # Review workflow
-    reviewer_ids = fields.Many2many('res.users', string='Reviewers')
-    approver_id = fields.Many2one('res.users', string='Final Approver')
-    review_deadline = fields.Date('Review Deadline')
-    
-    # File attachments
-    attachment_ids = fields.One2many('ir.attachment', 'res_id', 
-                                   domain=[('res_model', '=', 'document.management')])
-    
-    def action_submit_for_review(self):
-        """Submit document for review"""
-        if not self.reviewer_ids:
-            raise ValidationError(_("Please assign reviewers before submitting"))
-        
-        # Assign reviewers
-        self.assign_to_users(
-            user_ids=self.reviewer_ids.ids,
-            deadline=self.review_deadline,
-            description="Please review this document",
-            reason="Document submitted for review"
-        )
-        
-        # Grant temporary access to reviewers
-        for reviewer in self.reviewer_ids:
-            self.grant_access_to_user(
-                reviewer.id,
-                start_date=fields.Datetime.now(),
-                end_date=self.review_deadline,
-                reason="Review access"
-            )
-        
-        self.status = 'review'
-    
-    def action_approve(self):
-        """Approve document"""
-        if self.env.user != self.approver_id:
-            raise ValidationError(_("Only the designated approver can approve this document"))
-        
-        self.write({
-            'status': 'approved',
-            'access_level': 'internal'  # Make approved docs generally accessible
-        })
-        
-        # Complete review assignments
-        self.complete_assignment(reason="Document approved")
-```
-
-### Usage Example
-
-```python
-# Create confidential document
-doc = env['document.management'].create({
-    'name': 'Employee Handbook 2024',
-    'document_type': 'manual',
-    'content': '<p>Company policies and procedures...</p>',
-    'access_level': 'restricted',  # Start restricted
-    'reviewer_ids': [(6, 0, [hr_manager.id, legal_counsel.id])],
-    'approver_id': ceo.id
-})
-
-# Create HR team access group
-hr_group = env['tk.accessible.group'].create({
-    'name': 'HR Team',
-    'description': 'Human Resources team members',
-    'group_type': 'department',
-    'user_ids': [(6, 0, hr_team_users.ids)]
-})
-
-# Grant access to HR team
-doc.add_custom_access_group(hr_group.id, reason="HR document access")
-
-# Submit for review
-doc.action_submit_for_review()
-```
-
-## Example 3: Customer Support Ticket System
-
-### Model Implementation
-
-```python
-class SupportTicket(models.Model):
-    _name = 'support.ticket'
-    _description = 'Support Ticket'
-    _inherit = [
-        'tk.ownable.mixin',
-        'tk.assignable.mixin',
-        'tk.responsible.mixin'
-    ]
-    
-    name = fields.Char('Ticket Number', default=lambda self: self.env['ir.sequence'].next_by_code('support.ticket'))
-    customer_id = fields.Many2one('res.partner', 'Customer', required=True)
-    subject = fields.Char('Subject', required=True)
-    description = fields.Text('Description', required=True)
-    
-    priority = fields.Selection([
         ('low', 'Low'),
         ('normal', 'Normal'),
         ('high', 'High'),
         ('critical', 'Critical')
     ], default='normal')
     
-    status = fields.Selection([
-        ('new', 'New'),
-        ('assigned', 'Assigned'),
-        ('in_progress', 'In Progress'),
-        ('waiting_customer', 'Waiting for Customer'),
-        ('resolved', 'Resolved'),
-        ('closed', 'Closed')
-    ], default='new')
+    @api.model
+    def create(self, vals):
+        """Auto-assign ownership and set access level on creation"""
+        task = super().create(vals)
+        
+        # Auto-assign ownership to creator
+        if not task.owner_id:
+            task.owner_id = self.env.user
+        
+        # Set access level based on priority
+        if task.priority == 'critical':
+            task.access_level = 'restricted'
+        else:
+            task.access_level = 'internal'
+            
+        return task
     
-    category_id = fields.Many2one('support.category', 'Category')
-    team_id = fields.Many2one('support.team', 'Support Team')
+    def action_start_work(self):
+        """Start working on the task"""
+        # Assign to current user if not already assigned
+        if self.env.user not in self.assigned_user_ids:
+            self.add_assignee(self.env.user.id, reason="Starting work")
+        
+        # Change assignment status
+        self.start_assignment(reason="Work begun")
+        self.state = 'in_progress'
     
-    # SLA tracking
-    response_deadline = fields.Datetime('Response Due')
-    resolution_deadline = fields.Datetime('Resolution Due')
-    first_response_date = fields.Datetime('First Response')
-    resolution_date = fields.Datetime('Resolution Date')
+    def action_submit_for_review(self):
+        """Submit task for review"""
+        # Find reviewers group
+        reviewers = self.env.ref('project.group_project_manager', raise_if_not_found=False)
+        if reviewers:
+            # Grant access to reviewers
+            self.grant_group_access(reviewers.id, reason="Review required")
+            
+            # Assign for review
+            self.assign_to_users(
+                reviewers.users.ids,
+                deadline=fields.Datetime.now() + timedelta(days=2),
+                description="Review and approve task completion",
+                priority='normal',
+                reason="Task submitted for review"
+            )
+        
+        self.state = 'review'
+```
+
+### Document Management System
+
+```python
+class Document(models.Model):
+    _name = 'example.document'
+    _inherit = ['tk.ownable.mixin', 'tk.accessible.mixin']
+    _description = 'Document with Access Control'
     
-    # Escalation
-    escalation_level = fields.Integer('Escalation Level', default=0)
-    escalated_to_ids = fields.Many2many('res.users', string='Escalated To')
+    name = fields.Char('Document Name', required=True)
+    content = fields.Html('Content')
+    document_type = fields.Selection([
+        ('public', 'Public Document'),
+        ('internal', 'Internal Document'),
+        ('confidential', 'Confidential'),
+        ('classified', 'Classified')
+    ], required=True)
+    
+    department_id = fields.Many2one('hr.department', 'Department')
     
     @api.model
     def create(self, vals):
-        """Auto-assign based on category and set SLA deadlines"""
-        ticket = super().create(vals)
+        """Set access level based on document type"""
+        doc = super().create(vals)
         
-        # Set SLA deadlines based on priority
-        sla_hours = {
-            'low': 24,
-            'normal': 8,
-            'high': 4,
-            'critical': 1
+        # Auto-set access level
+        access_mapping = {
+            'public': 'public',
+            'internal': 'internal', 
+            'confidential': 'restricted',
+            'classified': 'private'
         }
+        doc.access_level = access_mapping.get(doc.document_type, 'internal')
         
-        hours = sla_hours.get(ticket.priority, 8)
-        ticket.response_deadline = fields.Datetime.now() + timedelta(hours=hours)
-        ticket.resolution_deadline = fields.Datetime.now() + timedelta(hours=hours*3)
+        # Grant department access for internal documents
+        if doc.document_type == 'internal' and doc.department_id:
+            dept_users = doc.department_id.member_ids
+            if dept_users:
+                doc.grant_access(dept_users.ids, reason="Department access")
         
-        # Auto-assign to team
-        if ticket.category_id and ticket.category_id.default_team_id:
-            ticket.team_id = ticket.category_id.default_team_id
-            ticket.assign_to_team()
-        
-        return ticket
+        return doc
     
-    def assign_to_team(self):
-        """Assign ticket to team members"""
-        if not self.team_id:
-            return
+    def action_share_with_team(self):
+        """Share document with team members"""
+        if not self.can_grant_access:
+            raise AccessError(_("You don't have permission to share this document."))
         
-        # Assign to all team members
-        self.assign_to_users(
-            user_ids=self.team_id.member_ids.ids,
-            deadline=self.response_deadline,
-            description=f"New {self.priority} priority ticket: {self.subject}",
-            priority=self.priority,
-            reason="Auto-assignment to support team"
-        )
-        
-        # Set team lead as responsible
-        if self.team_id.leader_id:
-            self.assign_responsibility(
-                user_ids=[self.team_id.leader_id.id],
-                responsibility_type='primary',
-                description="Team lead responsibility for ticket resolution"
-            )
-        
-        self.status = 'assigned'
-    
-    def action_take_ownership(self):
-        """Support agent takes ownership of ticket"""
-        self.transfer_ownership(
-            self.env.user.id, 
-            reason="Support agent taking ownership"
-        )
-        
-        # Assign to self
-        self.assign_to_users(
-            [self.env.user.id],
-            reason="Taking ownership of ticket"
-        )
-        
-        self.status = 'in_progress'
-        
-        if not self.first_response_date:
-            self.first_response_date = fields.Datetime.now()
-    
-    def action_escalate(self):
-        """Escalate ticket to next level"""
-        self.escalation_level += 1
-        
-        # Find escalation target based on level
-        if self.escalation_level == 1:
-            # Escalate to team leader
-            target = self.team_id.leader_id
-        elif self.escalation_level == 2:
-            # Escalate to department manager
-            target = self.team_id.department_id.manager_id
-        else:
-            # Escalate to support director
-            target = self.env.ref('support.support_director')
-        
-        if target:
-            # Delegate responsibility to escalation target
-            self.delegate_responsibility(
-                [target.id],
-                reason=f"Escalation level {self.escalation_level}"
-            )
-            
-            self.escalated_to_ids = [(4, target.id)]
-    
-    def action_resolve(self):
-        """Mark ticket as resolved"""
-        self.write({
-            'status': 'resolved',
-            'resolution_date': fields.Datetime.now()
+        # Create custom access group for team
+        team_group = self.env['tk.accessible.group'].create({
+            'name': f'Team Access - {self.name}',
+            'description': f'Team access for document: {self.name}',
+            'user_ids': [(6, 0, self._get_team_members().ids)]
         })
         
-        self.complete_assignment(reason="Ticket resolved")
+        # Apply the group
+        self.custom_access_group_ids = [(4, team_group.id)]
+        
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'message': _('Document shared with team successfully'),
+                'type': 'success'
+            }
+        }
+    
+    def _get_team_members(self):
+        """Get team members - override in subclasses"""
+        return self.env['res.users'].search([
+            ('groups_id', 'in', self.env.ref('base.group_user').id)
+        ])
 ```
 
-### Workflow Example
+### Customer Account Management
 
 ```python
-# Customer creates ticket (via portal or API)
-ticket = env['support.ticket'].create({
-    'customer_id': customer.id,
-    'subject': 'Login issues',
-    'description': 'Cannot log into the system',
-    'priority': 'high',
-    'category_id': tech_support_category.id
-})
-
-# Ticket auto-assigned to tech support team
-# Agent takes ownership
-ticket.action_take_ownership()
-
-# If issue is complex, escalate
-if ticket.priority == 'critical' and ticket.escalation_level == 0:
-    ticket.action_escalate()
-
-# Resolve ticket
-ticket.action_resolve()
+class CustomerAccount(models.Model):
+    _name = 'example.customer.account'
+    _inherit = [
+        'tk.ownable.mixin',
+        'tk.assignable.mixin',
+        'tk.responsible.mixin'
+    ]
+    _description = 'Customer Account with Assignment and Responsibility'
+    
+    name = fields.Char('Account Name', required=True)
+    customer_id = fields.Many2one('res.partner', 'Customer', required=True)
+    account_manager_id = fields.Many2one('res.users', 'Account Manager')
+    revenue = fields.Monetary('Annual Revenue')
+    currency_id = fields.Many2one('res.currency', default=lambda self: self.env.company.currency_id)
+    
+    # Account status
+    status = fields.Selection([
+        ('prospect', 'Prospect'),
+        ('active', 'Active'),
+        ('at_risk', 'At Risk'),
+        ('churned', 'Churned')
+    ], default='prospect', tracking=True)
+    
+    @api.model
+    def create(self, vals):
+        """Auto-assign ownership and responsibility"""
+        account = super().create(vals)
+        
+        # Set owner as account manager if specified
+        if account.account_manager_id:
+            account.owner_id = account.account_manager_id
+            
+            # Assign primary responsibility
+            account.assign_responsibility(
+                [account.account_manager_id.id],
+                responsibility_type='primary',
+                description="Primary account management and customer relationship"
+            )
+        
+        return account
+    
+    def action_escalate_to_manager(self):
+        """Escalate account to manager"""
+        # Find sales manager
+        sales_manager = self.env.ref('sales_team.group_sale_manager', raise_if_not_found=False)
+        if not sales_manager or not sales_manager.users:
+            raise ValidationError(_("No sales manager found for escalation."))
+        
+        manager = sales_manager.users[0]
+        
+        # Transfer ownership
+        self.transfer_ownership(manager.id, reason="Account escalated due to issues")
+        
+        # Assign urgent task
+        self.assign_to_users(
+            [manager.id],
+            deadline=fields.Datetime.now() + timedelta(hours=24),
+            description="Urgent: Account requires immediate attention",
+            priority='urgent',
+            reason="Account escalation"
+        )
+        
+        # Add original owner as co-owner for continuity
+        if self.owner_id != manager:
+            self.add_co_owner(self.owner_id.id, reason="Continuity during escalation")
+    
+    def action_assign_support_team(self):
+        """Assign account to support team"""
+        support_group = self.env.ref('helpdesk.group_helpdesk_user', raise_if_not_found=False)
+        if support_group:
+            self.assign_to_users(
+                support_group.users.ids,
+                description="Provide ongoing customer support",
+                priority='normal',
+                reason="Support team assignment"
+            )
+            
+            # Add secondary responsibility
+            self.add_secondary_responsible(
+                support_group.users.ids,
+                reason="Support team backup responsibility"
+            )
 ```
 
-## Example 4: Inventory Management
+## 🏗️ Advanced Integration Examples
 
-### Model Implementation
+### Workflow Integration
 
 ```python
-class InventoryItem(models.Model):
-    _name = 'inventory.item'
-    _description = 'Inventory Item'
+class WorkflowDocument(models.Model):
+    _name = 'example.workflow.document'
     _inherit = [
         'tk.ownable.mixin',
         'tk.assignable.mixin',
         'tk.accessible.mixin'
     ]
+    _description = 'Document with Workflow Integration'
     
-    name = fields.Char('Item Name', required=True)
-    sku = fields.Char('SKU', required=True)
-    category_id = fields.Many2one('product.category', 'Category')
-    location_id = fields.Many2one('stock.location', 'Location')
+    name = fields.Char('Document Name', required=True)
+    content = fields.Text('Content')
+    workflow_state = fields.Selection([
+        ('draft', 'Draft'),
+        ('submitted', 'Submitted'),
+        ('under_review', 'Under Review'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+        ('published', 'Published')
+    ], default='draft', tracking=True)
     
-    # Inventory details
-    quantity_on_hand = fields.Float('Quantity on Hand')
-    reserved_quantity = fields.Float('Reserved Quantity')
-    available_quantity = fields.Float('Available', compute='_compute_available')
-    
-    # Ownership for tracking responsibility
-    warehouse_manager_id = fields.Many2one('res.users', 'Warehouse Manager')
-    
-    # Assignment for tasks (counting, restocking, etc.)
-    last_count_date = fields.Date('Last Count Date')
-    next_count_date = fields.Date('Next Count Date')
-    reorder_level = fields.Float('Reorder Level')
-    
-    needs_recount = fields.Boolean('Needs Recount', compute='_compute_needs_recount')
-    needs_restock = fields.Boolean('Needs Restock', compute='_compute_needs_restock')
-    
-    @api.depends('quantity_on_hand', 'reserved_quantity')
-    def _compute_available(self):
-        for item in self:
-            item.available_quantity = item.quantity_on_hand - item.reserved_quantity
-    
-    @api.depends('last_count_date')
-    def _compute_needs_recount(self):
-        today = fields.Date.today()
-        for item in self:
-            if not item.last_count_date:
-                item.needs_recount = True
-            else:
-                days_since_count = (today - item.last_count_date).days
-                item.needs_recount = days_since_count > 90  # Quarterly counts
-    
-    @api.depends('available_quantity', 'reorder_level')
-    def _compute_needs_restock(self):
-        for item in self:
-            item.needs_restock = item.available_quantity <= item.reorder_level
-    
-    def action_schedule_count(self, count_date=None):
-        """Schedule inventory count"""
-        if not count_date:
-            count_date = fields.Date.today() + timedelta(days=7)
+    def action_submit(self):
+        """Submit document for approval workflow"""
+        # Set restricted access during review
+        self.set_access_level('restricted', reason="Under review process")
         
-        # Assign to warehouse staff
-        warehouse_users = self.env['res.users'].search([
-            ('groups_id', 'in', [self.env.ref('stock.group_stock_user').id])
-        ])
+        # Find approvers
+        approver_group = self.env.ref('example.group_document_approvers')
         
+        # Assign to approvers
         self.assign_to_users(
-            user_ids=warehouse_users.ids,
-            deadline=count_date,
-            description=f"Physical count required for {self.name}",
+            approver_group.users.ids,
+            deadline=fields.Datetime.now() + timedelta(days=5),
+            description="Review and approve document for publication",
             priority='normal',
-            reason="Scheduled inventory count"
+            reason="Document submitted for approval"
         )
         
-        self.next_count_date = count_date
+        # Grant access to approvers
+        self.grant_group_access(approver_group.id, reason="Review access")
+        
+        self.workflow_state = 'submitted'
     
-    def action_schedule_restock(self):
-        """Schedule restocking"""
-        if not self.needs_restock:
-            return
+    def action_approve(self):
+        """Approve document"""
+        if not self._can_approve():
+            raise AccessError(_("You don't have permission to approve this document."))
         
-        # Assign to purchasing team
-        purchasing_users = self.env['res.users'].search([
-            ('groups_id', 'in', [self.env.ref('purchase.group_purchase_user').id])
-        ])
+        # Complete assignment
+        self.complete_assignment(reason="Document approved")
         
-        self.assign_to_users(
-            user_ids=purchasing_users.ids,
-            deadline=fields.Date.today() + timedelta(days=3),
-            description=f"Restock {self.name} - Current: {self.available_quantity}, Reorder: {self.reorder_level}",
-            priority='high' if self.available_quantity <= 0 else 'normal',
-            reason="Low stock level detected"
+        # Set public access for approved documents
+        self.set_access_level('public', reason="Document approved for publication")
+        
+        self.workflow_state = 'approved'
+    
+    def action_reject(self):
+        """Reject document"""
+        if not self._can_approve():
+            raise AccessError(_("You don't have permission to reject this document."))
+        
+        # Cancel assignment
+        self.cancel_assignment(reason="Document rejected")
+        
+        # Transfer back to original owner
+        if self.previous_owner_id:
+            self.transfer_ownership(
+                self.previous_owner_id.id, 
+                reason="Returned to author for revision"
+            )
+        
+        self.workflow_state = 'rejected'
+    
+    def _can_approve(self):
+        """Check if current user can approve"""
+        approver_group = self.env.ref('example.group_document_approvers', raise_if_not_found=False)
+        return (
+            approver_group and self.env.user in approver_group.users or
+            self.env.user.has_group('base.group_system')
         )
 ```
 
-### Automated Workflows
+### Multi-level Responsibility System
 
 ```python
-# Cron job to check for low stock and schedule tasks
-@api.model
-def _cron_check_inventory_levels(self):
-    # Find items needing restock
-    low_stock_items = self.search([('needs_restock', '=', True)])
-    for item in low_stock_items:
-        item.action_schedule_restock()
-    
-    # Find items needing count
-    recount_items = self.search([('needs_recount', '=', True)])
-    for item in recount_items:
-        item.action_schedule_count()
-```
-
-## Example 5: Contract Management
-
-### Complete Implementation
-
-```python
-class Contract(models.Model):
-    _name = 'contract.management'
-    _description = 'Contract Management'
+class Project(models.Model):
+    _name = 'example.project'
     _inherit = [
         'tk.ownable.mixin',
         'tk.assignable.mixin',
-        'tk.accessible.mixin',
         'tk.responsible.mixin'
     ]
+    _description = 'Project with Multi-level Responsibility'
     
-    name = fields.Char('Contract Name', required=True)
-    partner_id = fields.Many2one('res.partner', 'Counterparty', required=True)
-    contract_type = fields.Selection([
-        ('service', 'Service Agreement'),
-        ('supply', 'Supply Contract'),
-        ('employment', 'Employment Contract'),
-        ('nda', 'Non-Disclosure Agreement')
-    ], required=True)
-    
-    # Contract lifecycle
-    state = fields.Selection([
-        ('draft', 'Draft'),
-        ('review', 'Under Review'),
-        ('approved', 'Approved'),
-        ('signed', 'Signed'),
-        ('active', 'Active'),
-        ('expired', 'Expired'),
-        ('terminated', 'Terminated')
-    ], default='draft')
-    
-    # Important dates
+    name = fields.Char('Project Name', required=True)
+    description = fields.Text('Description')
     start_date = fields.Date('Start Date')
     end_date = fields.Date('End Date')
-    signature_date = fields.Date('Signature Date')
     
-    # Financial
-    value = fields.Monetary('Contract Value')
-    currency_id = fields.Many2one('res.currency', default=lambda self: self.env.company.currency_id)
+    # Project hierarchy
+    parent_project_id = fields.Many2one('example.project', 'Parent Project')
+    child_project_ids = fields.One2many('example.project', 'parent_project_id', 'Sub-projects')
     
-    # Review and approval workflow
-    legal_reviewer_id = fields.Many2one('res.users', 'Legal Reviewer')
-    business_approver_id = fields.Many2one('res.users', 'Business Approver')
-    final_approver_id = fields.Many2one('res.users', 'Final Approver')
+    # Project roles
+    project_manager_id = fields.Many2one('res.users', 'Project Manager')
+    tech_lead_id = fields.Many2one('res.users', 'Technical Lead')
+    stakeholder_ids = fields.Many2many('res.users', 'project_stakeholder_rel', 'Stakeholders')
     
-    def action_submit_for_legal_review(self):
-        """Submit contract for legal review"""
-        if not self.legal_reviewer_id:
-            raise ValidationError(_("Please assign a legal reviewer"))
-        
-        # Assign to legal reviewer
-        self.assign_to_users(
-            [self.legal_reviewer_id.id],
-            deadline=fields.Date.today() + timedelta(days=5),
-            description="Legal review required",
-            priority='normal',
-            reason="Contract submitted for legal review"
-        )
-        
-        # Set legal team as responsible
-        self.assign_responsibility(
-            [self.legal_reviewer_id.id],
-            responsibility_type='primary',
-            description="Legal review and compliance check"
-        )
-        
-        self.state = 'review'
+    @api.model
+    def create(self, vals):
+        """Set up project hierarchy and responsibilities"""
+        project = super().create(vals)
+        project._setup_project_roles()
+        return project
     
-    def action_approve_legal(self):
-        """Legal approval"""
-        if self.env.user != self.legal_reviewer_id:
-            raise ValidationError(_("Only assigned legal reviewer can approve"))
+    def _setup_project_roles(self):
+        """Set up default project roles and responsibilities"""
+        responsibilities = []
         
-        # Complete legal review assignment
-        self.complete_assignment(reason="Legal review completed")
+        # Project Manager - Primary responsibility
+        if self.project_manager_id:
+            responsibilities.append({
+                'user_id': self.project_manager_id.id,
+                'type': 'primary',
+                'description': 'Overall project management and delivery'
+            })
+            
+            # Set as owner
+            self.owner_id = self.project_manager_id
         
-        # Assign to business approver
-        if self.business_approver_id:
+        # Technical Lead - Secondary responsibility
+        if self.tech_lead_id:
+            responsibilities.append({
+                'user_id': self.tech_lead_id.id,
+                'type': 'secondary', 
+                'description': 'Technical architecture and development oversight'
+            })
+            
+            # Add as co-owner
+            self.add_co_owner(self.tech_lead_id.id, reason="Technical lead role")
+        
+        # Set up responsibilities
+        for resp in responsibilities:
+            self.assign_responsibility(
+                [resp['user_id']],
+                responsibility_type=resp['type'],
+                description=resp['description']
+            )
+        
+        # Assign stakeholders for visibility
+        if self.stakeholder_ids:
             self.assign_to_users(
-                [self.business_approver_id.id],
-                description="Business approval required",
-                reason="Legal review completed, business approval needed"
+                self.stakeholder_ids.ids,
+                description="Project oversight and stakeholder review",
+                priority='low',
+                reason="Stakeholder visibility"
             )
     
-    def action_final_approval(self):
-        """Final approval for contract"""
-        self.state = 'approved'
-        self.complete_assignment(reason="Contract approved")
+    def action_delegate_management(self, new_manager_id, duration_days=None):
+        """Temporarily delegate project management"""
+        if not self.can_delegate:
+            raise AccessError(_("You cannot delegate this project."))
         
-        # Restrict access to authorized personnel only
-        self.write({
-            'access_level': 'restricted',
-            'allowed_user_ids': [(6, 0, [
-                self.owner_id.id,
-                self.legal_reviewer_id.id,
-                self.business_approver_id.id,
-                self.final_approver_id.id
-            ])]
-        })
+        end_date = None
+        if duration_days:
+            end_date = fields.Datetime.now() + timedelta(days=duration_days)
+        
+        # Delegate responsibility
+        self.delegate_responsibility(
+            new_manager_id,
+            end_date=end_date,
+            reason=f"Temporary delegation for {duration_days} days" if duration_days else "Temporary delegation"
+        )
+        
+        # Add as co-owner during delegation
+        self.add_co_owner(new_manager_id, reason="Temporary management delegation")
+        
+        return True
+    
+    def action_escalate_to_portfolio(self):
+        """Escalate project issues to portfolio level"""
+        # Find portfolio managers
+        portfolio_group = self.env.ref('project.group_portfolio_manager', raise_if_not_found=False)
+        if not portfolio_group:
+            raise ValidationError(_("No portfolio management group found."))
+        
+        # Assign to portfolio managers
+        self.assign_to_users(
+            portfolio_group.users.ids,
+            deadline=fields.Datetime.now() + timedelta(days=1),
+            description="Project requires portfolio-level intervention",
+            priority='urgent',
+            reason="Project escalation"
+        )
+        
+        # Grant access to portfolio level
+        self.grant_group_access(portfolio_group.id, reason="Portfolio escalation")
 ```
 
-## Best Practices Summary
+### Custom Dashboard Integration
 
-### 1. Model Design
-- Always inherit mixins in logical order
-- Add business-specific computed fields
-- Implement proper workflow methods
-- Use appropriate tracking on important fields
+```python
+class ProjectDashboard(models.TransientModel):
+    _inherit = 'tk.comprehensive.dashboard'
+    
+    # Project-specific statistics
+    my_managed_projects = fields.Integer(
+        'Projects I Manage',
+        compute='_compute_project_statistics'
+    )
+    overdue_project_tasks = fields.Integer(
+        'Overdue Project Tasks',
+        compute='_compute_project_statistics'
+    )
+    projects_requiring_attention = fields.Integer(
+        'Projects Requiring Attention',
+        compute='_compute_project_statistics'
+    )
+    
+    def _compute_project_statistics(self):
+        for dashboard in self:
+            # Projects I manage (own)
+            dashboard.my_managed_projects = self.env['example.project'].search_count([
+                ('owner_id', '=', self.env.user.id)
+            ])
+            
+            # Overdue tasks assigned to me
+            dashboard.overdue_project_tasks = self.env['example.project.task'].search_count([
+                ('assigned_user_ids', 'in', self.env.user.id),
+                ('is_overdue', '=', True),
+                ('assignment_status', 'in', ['assigned', 'in_progress'])
+            ])
+            
+            # Projects where I'm responsible and have urgent assignments
+            dashboard.projects_requiring_attention = self.env['example.project'].search_count([
+                ('responsible_user_ids', 'in', self.env.user.id),
+                ('assigned_user_ids', 'in', self.env.user.id),
+                ('assignment_priority', '=', 'urgent')
+            ])
+    
+    def action_view_my_projects(self):
+        """Open view of projects I manage"""
+        return {
+            'type': 'ir.actions.act_window',
+            'name': 'My Projects',
+            'res_model': 'example.project',
+            'view_mode': 'tree,form',
+            'domain': [('owner_id', '=', self.env.user.id)],
+            'context': {'create': False}
+        }
+    
+    def action_view_overdue_tasks(self):
+        """Open view of my overdue tasks"""
+        return {
+            'type': 'ir.actions.act_window',
+            'name': 'My Overdue Tasks',
+            'res_model': 'example.project.task',
+            'view_mode': 'tree,form',
+            'domain': [
+                ('assigned_user_ids', 'in', self.env.user.id),
+                ('is_overdue', '=', True),
+                ('assignment_status', 'in', ['assigned', 'in_progress'])
+            ]
+        }
+```
 
-### 2. Security
-- Start with restrictive access and open up as needed
-- Use custom access groups for team-based access
-- Implement proper record rules
-- Log all important changes with reasons
+## 🔍 Search and Filter Examples
 
-### 3. User Experience
-- Provide clear button labels and help text
-- Use appropriate visibility conditions
-- Include all mixin tabs in form views
-- Add useful filters in search views
+### Smart Search Methods
 
-### 4. Performance
-- Index frequently searched fields
-- Optimize computed field calculations
-- Use batch operations for bulk changes
-- Consider database impact of many2many fields
+```python
+class SmartSearch(models.Model):
+    _name = 'example.smart.search'
+    _description = 'Smart Search Examples'
+    
+    @api.model
+    def search_my_work(self):
+        """Find all records I'm involved with"""
+        domain = [
+            '|', '|', '|', '|',
+            ('owner_id', '=', self.env.user.id),
+            ('co_owner_ids', 'in', self.env.user.id),
+            ('assigned_user_ids', 'in', self.env.user.id),
+            ('responsible_user_ids', 'in', self.env.user.id),
+            ('secondary_responsible_ids', 'in', self.env.user.id)
+        ]
+        return self.search(domain)
+    
+    @api.model
+    def search_urgent_items(self):
+        """Find items requiring urgent attention"""
+        domain = [
+            '|', '|',
+            ('assignment_priority', '=', 'urgent'),
+            ('is_overdue', '=', True),
+            ('responsibility_type', '=', 'primary'),
+            # User is involved
+            '|', '|', '|',
+            ('owner_id', '=', self.env.user.id),
+            ('assigned_user_ids', 'in', self.env.user.id),
+            ('responsible_user_ids', 'in', self.env.user.id)
+        ]
+        return self.search(domain)
+    
+    @api.model
+    def search_accessible_records(self, access_level=None):
+        """Find records user can access"""
+        domain = []
+        
+        # Public records
+        domain.append('|')
+        domain.append(('access_level', '=', 'public'))
+        
+        # Internal records (if internal user)
+        if not self.env.user.share:
+            domain.append('|')
+            domain.append(('access_level', '=', 'internal'))
+        
+        # Records with explicit access
+        domain.append('|')
+        domain.append(('allowed_user_ids', 'in', self.env.user.id))
+        
+        # Records through group access
+        user_groups = self.env.user.groups_id
+        if user_groups:
+            domain.append('|')
+            domain.append(('allowed_group_ids', 'in', user_groups.ids))
+        
+        # Records owned by user
+        domain.append('|')
+        domain.append(('owner_id', '=', self.env.user.id))
+        
+        # Records co-owned by user
+        domain.append(('co_owner_ids', 'in', self.env.user.id))
+        
+        if access_level:
+            domain.append(('access_level', '=', access_level))
+        
+        return self.search(domain)
+```
 
-### 5. Workflow Integration
-- Combine mixin functionality with business logic
-- Use assignments for task delegation
-- Implement proper approval chains
-- Provide escalation mechanisms
+### Custom Filters
 
----
+```python
+# In your model's view, add custom filters
+class CustomFilters(models.Model):
+    _name = 'example.custom.filters'
+    _inherit = ['tk.ownable.mixin', 'tk.assignable.mixin']
+    
+    # Add search methods for common filter patterns
+    def _search_is_owned_by_me(self, operator, value):
+        """Search for records owned by current user"""
+        if operator == '=' and value:
+            return [
+                '|',
+                ('owner_id', '=', self.env.user.id),
+                ('co_owner_ids', 'in', self.env.user.id)
+            ]
+        return []
+    
+    def _search_needs_attention(self, operator, value):
+        """Search for records needing attention"""
+        if operator == '=' and value:
+            return [
+                '|', '|',
+                ('is_overdue', '=', True),
+                ('assignment_priority', '=', 'urgent'),
+                ('assignment_status', '=', 'assigned')
+            ]
+        return []
+    
+    # Add computed fields for the filters
+    needs_attention = fields.Boolean(
+        'Needs Attention',
+        search='_search_needs_attention',
+        help="Records requiring immediate attention"
+    )
+```
 
-*These examples demonstrate the flexibility and power of the Comprehensive Toolkit mixins. Adapt them to your specific business requirements and extend as needed.*
+## 🧪 Testing Examples
+
+### Comprehensive Test Suite
+
+```python
+from odoo.tests.common import TransactionCase
+from odoo.exceptions import AccessError, ValidationError
+from datetime import timedelta
+
+class TestComprehensiveToolkit(TransactionCase):
+    
+    def setUp(self):
+        super().setUp()
+        
+        # Create test users
+        self.user1 = self.env['res.users'].create({
+            'name': 'Test User 1',
+            'login': 'testuser1',
+            'email': 'test1@example.com'
+        })
+        
+        self.user2 = self.env['res.users'].create({
+            'name': 'Test User 2', 
+            'login': 'testuser2',
+            'email': 'test2@example.com'
+        })
+        
+        self.manager = self.env['res.users'].create({
+            'name': 'Test Manager',
+            'login': 'manager',
+            'email': 'manager@example.com',
+            'groups_id': [(4, self.env.ref('base.group_system').id)]
+        })
+        
+        # Create test model record
+        self.test_record = self.env['example.project.task'].create({
+            'name': 'Test Task',
+            'description': 'Test task for toolkit testing'
+        })
+    
+    def test_ownership_workflow(self):
+        """Test complete ownership workflow"""
+        # Initial state - created by admin, so should have owner
+        self.assertTrue(self.test_record.owner_id)
+        
+        # Transfer ownership
+        self.test_record.transfer_ownership(
+            self.user1.id, 
+            reason="Test transfer"
+        )
+        self.assertEqual(self.test_record.owner_id, self.user1)
+        
+        # Add co-owner
+        self.test_record.with_user(self.user1).add_co_owner(
+            self.user2.id,
+            reason="Collaboration needed"
+        )
+        self.assertIn(self.user2, self.test_record.co_owner_ids)
+        
+        # Release ownership
+        self.test_record.with_user(self.user1).release_ownership(
+            reason="No longer needed"
+        )
+        self.assertFalse(self.test_record.owner_id)
+        
+        # Claim ownership
+        self.test_record.with_user(self.user2).claim_ownership(
+            reason="Taking over"
+        )
+        self.assertEqual(self.test_record.owner_id, self.user2)
+    
+    def test_assignment_permissions(self):
+        """Test assignment permission logic"""
+        # Owner should be able to assign
+        self.test_record.owner_id = self.user1
+        self.assertTrue(
+            self.test_record.with_user(self.user1).can_assign
+        )
+        
+        # Non-owner should not be able to assign
+        self.assertFalse(
+            self.test_record.with_user(self.user2).can_assign
+        )
+        
+        # But if user2 is assigned, they should be able to assign others
+        self.test_record.with_user(self.user1).assign_to_users(
+            [self.user2.id],
+            reason="Initial assignment"
+        )
+        self.assertTrue(
+            self.test_record.with_user(self.user2).can_assign
+        )
+    
+    def test_access_control(self):
+        """Test access control functionality"""
+        # Set restricted access
+        self.test_record.access_level = 'restricted'
+        self.test_record.owner_id = self.user1
+        
+        # Owner should have access
+        self.assertTrue(
+            self.test_record.with_user(self.user1).has_access
+        )
+        
+        # Non-owner should not have access
+        self.assertFalse(
+            self.test_record.with_user(self.user2).has_access
+        )
+        
+        # Grant access
+        self.test_record.with_user(self.user1).grant_access(
+            [self.user2.id],
+            reason="Need review access"
+        )
+        self.assertTrue(
+            self.test_record.with_user(self.user2).has_access
+        )
+    
+    def test_responsibility_delegation(self):
+        """Test responsibility delegation"""
+        # Assign initial responsibility
+        self.test_record.assign_responsibility(
+            [self.user1.id],
+            responsibility_type='primary',
+            description="Primary responsibility"
+        )
+        
+        # Delegate responsibility
+        end_date = fields.Datetime.now() + timedelta(days=7)
+        self.test_record.with_user(self.user1).delegate_responsibility(
+            self.user2.id,
+            end_date=end_date,
+            reason="Vacation coverage"
+        )
+        
+        # Check delegation
+        self.assertEqual(
+            self.test_record.responsibility_delegated_by,
+            self.user1
+        )
+        self.assertIn(self.user2, self.test_record.responsible_user_ids)
+    
+    def test_logging(self):
+        """Test that actions are properly logged"""
+        initial_log_count = self.env['tk.ownership.log'].search_count([])
+        
+        # Perform ownership transfer
+        self.test_record.transfer_ownership(
+            self.user1.id,
+            reason="Test logging"
+        )
+        
+        # Check log was created
+        new_log_count = self.env['tk.ownership.log'].search_count([])
+        self.assertEqual(new_log_count, initial_log_count + 1)
+        
+        # Check log details
+        log = self.env['tk.ownership.log'].search([], limit=1, order='id desc')
+        self.assertEqual(log.action, 'transfer')
+        self.assertEqual(log.new_owner_id, self.user1)
+        self.assertEqual(log.reason, "Test logging")
+```
+
+These examples demonstrate practical implementation patterns and real-world usage scenarios for the Comprehensive Toolkit mixins. Each example shows how to combine the mixins effectively and leverage their features in different business contexts.

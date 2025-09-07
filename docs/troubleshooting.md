@@ -1,510 +1,476 @@
 # Troubleshooting Guide
 
-## Common Issues and Solutions
+Common issues and solutions for the Comprehensive Toolkit module.
 
-### Installation Issues
+## 🚨 Installation Issues
 
-#### Issue: Module Not Found After Installation
-**Symptoms:**
-- Module doesn't appear in Apps list
-- Import errors when trying to use mixins
+### Module Not Appearing in Apps List
 
-**Solutions:**
-1. **Check Addons Path**
+**Problem**: The Comprehensive Toolkit module doesn't appear in the Apps list after installation.
+
+**Solutions**:
+1. **Update Apps List**:
    ```bash
-   # Verify module is in correct addons directory
-   ls -la /path/to/odoo/addons/comprehensive_toolkit
+   # Command line
+   ./odoo-bin -u base -d your_database --stop-after-init
+   
+   # Or in Odoo interface
+   Apps → Update Apps List
    ```
 
-2. **Update Apps List**
-   - Go to Apps → Update Apps List
-   - Search for "Comprehensive Toolkit"
-   - If still not found, restart Odoo server
+2. **Check Addons Path**:
+   ```bash
+   # Verify addons path includes your module directory
+   ./odoo-bin --addons-path=/path/to/addons --stop-after-init
+   ```
 
-3. **Check Server Logs**
+3. **Check Module Structure**:
+   - Ensure `__manifest__.py` exists and is valid
+   - Verify all required files are present
+   - Check file permissions
+
+4. **Check Logs**:
    ```bash
    tail -f /var/log/odoo/odoo.log
    ```
-   Look for import errors or missing dependencies
 
-4. **Verify Dependencies**
+### Import Errors
+
+**Problem**: Module fails to install with import errors.
+
+**Common Error**: `ImportError: No module named 'comprehensive_toolkit'`
+
+**Solutions**:
+1. **Check Python Path**:
    ```python
-   # Check if base modules are available
-   self.env['res.users']  # Should work
-   self.env['res.groups']  # Should work
+   import sys
+   print(sys.path)
    ```
 
-#### Issue: Database Migration Errors
-**Symptoms:**
-- Error during module installation
-- Tables not created properly
-- Field conflicts
+2. **Verify Dependencies**:
+   ```python
+   # Test basic Odoo imports
+   try:
+       from odoo import models, fields, api
+       print("Odoo imports successful")
+   except ImportError as e:
+       print(f"Import error: {e}")
+   ```
 
-**Solutions:**
-1. **Check for Conflicting Modules**
+3. **Check Module Dependencies**:
+   - Ensure `base` and `web` modules are installed
+   - Verify dependency chain in `__manifest__.py`
+
+### Database Errors
+
+**Problem**: Database-related errors during installation.
+
+**Common Errors**:
+- `relation "tk_ownership_log" does not exist`
+- `column "owner_id" does not exist`
+
+**Solutions**:
+1. **Force Module Update**:
+   ```bash
+   ./odoo-bin -u comprehensive_toolkit -d your_database --stop-after-init
+   ```
+
+2. **Check Database Permissions**:
    ```sql
-   -- Check for existing owner_id fields
-   SELECT table_name, column_name 
-   FROM information_schema.columns 
-   WHERE column_name = 'owner_id';
+   -- Check if user has necessary permissions
+   SELECT * FROM information_schema.role_table_grants 
+   WHERE grantee = 'your_odoo_user';
    ```
 
-2. **Manual Migration**
-   ```python
-   # In Python console
-   env['base'].env.cr.execute("DROP TABLE IF EXISTS tk_ownership_log CASCADE;")
-   env['base'].env.cr.commit()
-   # Then reinstall module
+3. **Manual Table Creation** (if needed):
+   ```sql
+   -- Check if tables exist
+   SELECT table_name FROM information_schema.tables 
+   WHERE table_schema = 'public' AND table_name LIKE 'tk_%';
    ```
 
-3. **Clean Installation**
-   - Uninstall module completely
-   - Remove all related tables
-   - Reinstall from scratch
+## 🔐 Permission Issues
 
-### Runtime Issues
+### AccessError: You Don't Have Permission
 
-#### Issue: Permission Denied Errors
-**Symptoms:**
-```
-AccessError: You don't have permission to transfer ownership
-```
+**Problem**: Users getting permission denied errors when using toolkit features.
 
-**Diagnosis:**
-```python
-# Check user permissions
-record = env['your.model'].browse(record_id)
-print(f"Can transfer: {record.can_transfer}")
-print(f"Current owner: {record.owner_id.name}")
-print(f"Current user: {env.user.name}")
-print(f"User groups: {env.user.groups_id.mapped('name')}")
-```
+**Solutions**:
+1. **Check User Groups**:
+   - Navigate to Settings → Users & Companies → Users
+   - Verify user has appropriate toolkit groups assigned
+   - Add user to "Comprehensive Toolkit / User" group
 
-**Solutions:**
-1. **Check Ownership**
-   - Only owners can transfer ownership
-   - System admins can override
-
-2. **Verify Group Membership**
+2. **Check Model Access Rights**:
    ```python
-   # Add user to appropriate group
-   env.user.groups_id = [(4, env.ref('base.group_system').id)]
+   # Check if user has access to model
+   self.env['tk.ownership.log'].check_access_rights('read')
+   self.env['tk.ownership.log'].check_access_rights('write')
    ```
 
-3. **Check Record Rules**
-   - Review ir.rule records for the model
-   - Ensure rules don't block legitimate access
+3. **Verify Record Rules**:
+   - Check if custom record rules are blocking access
+   - Review security.xml configuration
 
-#### Issue: Assignment Not Working
-**Symptoms:**
-- Can't assign users to records
-- Assignment buttons not visible
-- Assignment operations fail silently
+### Ownership Transfer Fails
 
-**Diagnosis:**
-```python
-record = env['your.model'].browse(record_id)
-print(f"Can assign: {record.can_assign}")
-print(f"Is assigned: {record.is_assigned}")
-print(f"Assigned users: {record.assigned_user_ids.mapped('name')}")
+**Problem**: Cannot transfer ownership even when user should have permission.
 
-# Check computed field logic
-record._compute_can_assign()
-```
-
-**Solutions:**
-1. **Check Assignment Logic**
+**Debugging Steps**:
+1. **Check Ownership Status**:
    ```python
-   # Override if needed
-   @api.depends('owner_id', 'assigned_user_ids')
-   def _compute_can_assign(self):
-       super()._compute_can_assign()
-       for record in self:
-           # Add custom logic
-           if record.state == 'locked':
-               record.can_assign = False
+   record = self.env['your.model'].browse(record_id)
+   print(f"Owner: {record.owner_id.name}")
+   print(f"Can transfer: {record.can_transfer}")
+   print(f"Current user: {self.env.user.name}")
    ```
 
-2. **Verify User Existence**
+2. **Verify Permissions**:
    ```python
-   # Check if users exist and are active
-   users = env['res.users'].browse(user_ids)
-   print(f"Active users: {users.filtered(lambda u: u.active)}")
+   # Check if user is owner or has system rights
+   is_owner = record.owner_id == self.env.user
+   is_system = self.env.user.has_group('base.group_system')
+   print(f"Is owner: {is_owner}, Is system: {is_system}")
    ```
 
-#### Issue: Access Control Not Working
-**Symptoms:**
-- Users can see records they shouldn't
-- Access levels not being respected
-- Custom groups not working
+### Assignment Permission Denied
 
-**Diagnosis:**
-```python
-record = env['your.model'].browse(record_id)
-user = env['res.users'].browse(user_id)
+**Problem**: Cannot assign records to users.
 
-print(f"Access level: {record.access_level}")
-print(f"User has access: {record._check_user_access(user)}")
-print(f"Allowed users: {record.allowed_user_ids.mapped('name')}")
-print(f"User groups: {user.groups_id.mapped('name')}")
-print(f"Allowed groups: {record.allowed_group_ids.mapped('name')}")
-```
+**Common Causes**:
+- User is not owner, co-owner, or already assigned
+- Record has restricted access level
+- Missing group permissions
 
-**Solutions:**
-1. **Check Access Logic**
+**Solutions**:
+1. **Check Assignment Permissions**:
    ```python
-   # Debug step by step
-   def debug_access(self, user):
-       if self.access_level == 'public':
-           return True
-       elif self.access_level == 'internal':
-           return user.has_group('base.group_user')
-       elif self.access_level == 'restricted':
-           return user in self.allowed_user_ids
-       # etc.
+   print(f"Can assign: {record.can_assign}")
+   print(f"Access level: {record.access_level}")
+   print(f"User has access: {record.has_access}")
    ```
 
-2. **Verify Custom Groups**
+2. **Grant Necessary Access**:
    ```python
-   # Check custom group setup
-   group = env['tk.accessible.group'].browse(group_id)
-   print(f"Group active: {group.active}")
-   print(f"Group users: {group.user_ids.mapped('name')}")
+   # Grant access if needed
+   if record.access_level == 'restricted':
+       record.grant_access([user.id], reason="Assignment access")
    ```
 
-### Performance Issues
+## 🔧 Performance Issues
 
-#### Issue: Slow Computed Field Calculations
-**Symptoms:**
-- Form views load slowly
-- List views take long time to render
-- Database queries are slow
+### Slow Dashboard Loading
 
-**Diagnosis:**
-```python
-# Profile computed fields
-import time
-start = time.time()
-records._compute_can_assign()
-print(f"Computation took: {time.time() - start:.2f} seconds")
-```
+**Problem**: Dashboard takes long time to load or times out.
 
-**Solutions:**
-1. **Optimize Computed Fields**
-   ```python
-   @api.depends('owner_id', 'co_owner_ids')
-   def _compute_is_owned_by_me(self):
-       # Optimize for batch processing
-       user_id = self.env.user.id
-       for record in self:
-           record.is_owned_by_me = (
-               record.owner_id.id == user_id or 
-               user_id in record.co_owner_ids.ids
-           )
+**Solutions**:
+1. **Add Database Indexes**:
+   ```sql
+   -- Add indexes for better performance
+   CREATE INDEX IF NOT EXISTS idx_tk_ownership_log_res_id 
+   ON tk_ownership_log(model_name, res_id);
+   
+   CREATE INDEX IF NOT EXISTS idx_tk_assignment_log_date 
+   ON tk_assignment_log(create_date);
+   
+   CREATE INDEX IF NOT EXISTS idx_tk_access_log_user 
+   ON tk_access_log(user_id);
    ```
 
-2. **Add Database Indexes**
+2. **Optimize Date Queries**:
    ```python
-   owner_id = fields.Many2one('res.users', index=True)
-   assignment_deadline = fields.Datetime(index=True)
+   # Use specific date ranges instead of large periods
+   def _compute_statistics(self):
+       # Instead of searching all records
+       recent_date = fields.Date.today() - timedelta(days=30)
+       domain = [('create_date', '>=', recent_date)]
    ```
 
-3. **Use Search Instead of Compute**
+3. **Use Stored Computed Fields**:
    ```python
-   # For simple cases, use search methods
-   def _search_is_owned_by_me(self, operator, value):
-       if operator == '=' and value:
-           return [
-               '|', ('owner_id', '=', self.env.user.id),
-               ('co_owner_ids', 'in', [self.env.user.id])
-           ]
+   # Mark computed fields as stored for better performance
+   my_count = fields.Integer('My Count', compute='_compute_count', store=True)
    ```
 
-#### Issue: Memory Usage Problems
-**Symptoms:**
-- Server runs out of memory
-- Large recordsets cause issues
-- Batch operations fail
+### Many2many Field Performance
 
-**Solutions:**
-1. **Process Records in Batches**
+**Problem**: Slow performance when dealing with large co-owner or assignee lists.
+
+**Solutions**:
+1. **Limit Related Field Loading**:
    ```python
-   def bulk_transfer_ownership(self, new_owner_id):
+   # Use specific fields instead of loading all
+   co_owners = record.co_owner_ids.with_context(prefetch_fields=False)
+   ```
+
+2. **Batch Operations**:
+   ```python
+   # Instead of individual operations
+   for record in records:
+       record.add_co_owner(user.id)
+   
+   # Use bulk operations
+   records.write({'co_owner_ids': [(4, user.id)]})
+   ```
+
+### Memory Issues with Large Datasets
+
+**Problem**: Out of memory errors when processing many records.
+
+**Solutions**:
+1. **Use Batch Processing**:
+   ```python
+   def process_large_dataset(self):
        batch_size = 100
-       for i in range(0, len(self), batch_size):
-           batch = self[i:i+batch_size]
-           for record in batch:
-               record.transfer_ownership(new_owner_id)
-           # Commit after each batch
-           self.env.cr.commit()
+       offset = 0
+       
+       while True:
+           records = self.search([], limit=batch_size, offset=offset)
+           if not records:
+               break
+               
+           # Process batch
+           for record in records:
+               record.process_toolkit_data()
+               
+           offset += batch_size
+           self.env.cr.commit()  # Commit each batch
    ```
 
-2. **Use SQL for Large Operations**
+2. **Optimize Queries**:
    ```python
-   def bulk_update_access_level(self, access_level):
-       self.env.cr.execute("""
-           UPDATE your_model_table 
-           SET access_level = %s 
-           WHERE id IN %s
-       """, (access_level, tuple(self.ids)))
+   # Use read() instead of browse() for simple data
+   data = self.env['your.model'].read(['owner_id', 'assigned_user_ids'])
    ```
 
-### Data Issues
+## 🐛 Data Issues
 
-#### Issue: Orphaned Log Records
-**Symptoms:**
-- Log tables growing very large
-- References to deleted records
-- Performance degradation
+### Missing Log Entries
 
-**Diagnosis:**
-```sql
--- Check for orphaned logs
-SELECT COUNT(*) FROM tk_ownership_log 
-WHERE res_id NOT IN (SELECT id FROM your_model_table);
-```
+**Problem**: Actions are not being logged properly.
 
-**Solutions:**
-1. **Clean Up Orphaned Records**
+**Debugging**:
+1. **Check Log Method Calls**:
+   ```python
+   # Verify logging is called
+   def transfer_ownership(self, new_owner_id, reason=None):
+       # ... ownership logic ...
+       self._log_ownership_change('transfer', old_owner, new_owner, reason)
+   ```
+
+2. **Check Log Model Access**:
+   ```python
+   # Test log creation manually
+   self.env['tk.ownership.log'].create({
+       'model_name': 'test.model',
+       'res_id': 1,
+       'action': 'test',
+       'reason': 'Testing log creation'
+   })
+   ```
+
+3. **Verify User Permissions**:
+   - Ensure user can write to log models
+   - Check record rules don't prevent log creation
+
+### Inconsistent Computed Fields
+
+**Problem**: Computed fields showing incorrect values.
+
+**Solutions**:
+1. **Force Recomputation**:
+   ```python
+   # Recompute specific fields
+   records._compute_is_owned()
+   records._compute_can_assign()
+   
+   # Or recompute all
+   records.recompute()
+   ```
+
+2. **Check Dependencies**:
+   ```python
+   # Ensure @api.depends is correct
+   @api.depends('owner_id', 'co_owner_ids')  # Must include all dependencies
+   def _compute_is_owned_by_me(self):
+       # ...
+   ```
+
+3. **Clear Cache**:
+   ```python
+   # Clear field cache
+   records.invalidate_cache(['is_owned', 'can_assign'])
+   ```
+
+### Orphaned Records
+
+**Problem**: Records with invalid owner/assignee references.
+
+**Solutions**:
+1. **Find Orphaned Records**:
    ```sql
-   -- Remove orphaned ownership logs
-   DELETE FROM tk_ownership_log 
-   WHERE res_id NOT IN (SELECT id FROM your_model_table);
-   
-   -- Similar for other log tables
-   DELETE FROM tk_assignment_log 
-   WHERE res_id NOT IN (SELECT id FROM your_model_table);
+   -- Find records with invalid owner_id
+   SELECT * FROM your_table 
+   WHERE owner_id NOT IN (SELECT id FROM res_users WHERE active = true);
    ```
 
-2. **Implement Cascade Deletion**
+2. **Clean Up Data**:
    ```python
-   @api.unlink
-   def unlink(self):
-       # Clean up logs before deletion
-       self.env['tk.ownership.log'].search([
-           ('model_name', '=', self._name),
-           ('res_id', 'in', self.ids)
-       ]).unlink()
-       return super().unlink()
+   # Remove invalid references
+   invalid_records = self.env['your.model'].search([
+       ('owner_id.active', '=', False)
+   ])
+   invalid_records.write({'owner_id': False})
    ```
 
-#### Issue: Inconsistent Data States
-**Symptoms:**
-- Records show as assigned but no assigned users
-- Ownership dates don't match transfers
-- Computed fields show wrong values
-
-**Diagnosis:**
-```python
-# Check data consistency
-records = env['your.model'].search([])
-for record in records:
-    if record.is_assigned and not record.assigned_user_ids:
-        print(f"Inconsistent assignment: {record.name}")
-    
-    if record.owner_id and not record.ownership_date:
-        print(f"Missing ownership date: {record.name}")
-```
-
-**Solutions:**
-1. **Data Migration Script**
+3. **Prevent Future Issues**:
    ```python
-   def fix_data_consistency(self):
-       # Fix assignment status
-       assigned_records = self.search([
-           ('assigned_user_ids', '!=', False),
-           ('assignment_status', '=', 'unassigned')
-       ])
-       assigned_records.write({'assignment_status': 'assigned'})
-       
-       # Fix ownership dates
-       owned_records = self.search([
-           ('owner_id', '!=', False),
-           ('ownership_date', '=', False)
-       ])
-       owned_records.write({'ownership_date': fields.Datetime.now()})
-   ```
-
-2. **Add Data Validation**
-   ```python
-   @api.constrains('assigned_user_ids', 'assignment_status')
-   def _check_assignment_consistency(self):
+   # Add validation
+   @api.constrains('owner_id')
+   def _check_owner_active(self):
        for record in self:
-           if record.assigned_user_ids and record.assignment_status == 'unassigned':
-               raise ValidationError(_("Assignment status inconsistent with assigned users"))
+           if record.owner_id and not record.owner_id.active:
+               raise ValidationError("Cannot assign inactive user as owner")
    ```
 
-### Integration Issues
-
-#### Issue: Conflicts with Other Modules
-**Symptoms:**
-- Field name conflicts
-- Method name conflicts
-- View inheritance issues
-
-**Solutions:**
-1. **Use Different Field Names**
-   ```python
-   class YourModel(models.Model):
-       _inherit = ['your.model', 'tk.ownable.mixin']
-       
-       # If you already have 'owner_id', use a different name
-       record_owner_id = fields.Many2one('res.users', string='Record Owner')
-       
-       # Override mixin to use your field
-       @property
-       def owner_id(self):
-           return self.record_owner_id
-   ```
-
-2. **Customize View Inheritance**
-   ```xml
-   <record id="view_your_model_form_inherit" model="ir.ui.view">
-       <field name="name">your.model.form.inherit</field>
-       <field name="model">your.model</field>
-       <field name="inherit_id" ref="module.view_your_model_form"/>
-       <field name="arch" type="xml">
-           <xpath expr="//sheet" position="after">
-               <!-- Add mixin tabs here -->
-           </xpath>
-       </field>
-   </record>
-   ```
-
-#### Issue: Widget Compatibility
-**Symptoms:**
-- Many2many widgets not working
-- Custom widgets not displaying
-- JavaScript errors in browser
-
-**Solutions:**
-1. **Use Standard Widgets**
-   ```xml
-   <!-- Instead of custom widgets, use standard ones -->
-   <field name="assigned_user_ids" widget="many2many_tags"/>
-   <field name="co_owner_ids" widget="many2many"/>
-   ```
-
-2. **Check Odoo Version Compatibility**
-   ```xml
-   <!-- For older Odoo versions -->
-   <field name="progress" widget="percentage"/>
-   
-   <!-- For newer versions -->
-   <field name="progress" widget="progressbar"/>
-   ```
-
-## Debugging Tools
+## 🔍 Debugging Tools
 
 ### Enable Debug Mode
-```python
-# In Python console
-env['ir.config_parameter'].set_param('base.enable_odoo_debug', True)
-```
 
-Or add to URL: `?debug=1`
+1. **Activate Developer Mode**:
+   - Settings → Activate Developer Mode
+   - Or add `?debug=1` to URL
 
-### Useful SQL Queries
-
-#### Check Mixin Usage
-```sql
--- Find models using ownable mixin
-SELECT DISTINCT model_name FROM tk_ownership_log;
-
--- Count operations by model
-SELECT model_name, COUNT(*) as operation_count 
-FROM tk_ownership_log 
-GROUP BY model_name 
-ORDER BY operation_count DESC;
-```
-
-#### Performance Analysis
-```sql
--- Find slow operations
-SELECT model_name, action, AVG(EXTRACT(EPOCH FROM (date - LAG(date) OVER (ORDER BY date)))) as avg_duration
-FROM tk_ownership_log 
-GROUP BY model_name, action;
-```
-
-### Python Debugging Snippets
-
-#### Check Field Values
-```python
-def debug_record(record):
-    print(f"Model: {record._name}")
-    print(f"ID: {record.id}")
-    
-    if hasattr(record, 'owner_id'):
-        print(f"Owner: {record.owner_id.name if record.owner_id else 'None'}")
-        print(f"Can transfer: {record.can_transfer}")
-    
-    if hasattr(record, 'assigned_user_ids'):
-        print(f"Assigned: {record.assigned_user_ids.mapped('name')}")
-        print(f"Can assign: {record.can_assign}")
-    
-    if hasattr(record, 'access_level'):
-        print(f"Access level: {record.access_level}")
-        print(f"Has access: {record.has_access}")
-```
-
-#### Test Permissions
-```python
-def test_permissions(record, user):
-    # Switch to test user
-    with record.sudo(user):
-        print(f"As {user.name}:")
-        print(f"  Can transfer: {record.can_transfer}")
-        print(f"  Can assign: {record.can_assign}")
-        print(f"  Can delegate: {record.can_delegate}")
-        print(f"  Has access: {record.has_access}")
-```
-
-## Getting Help
-
-### Log Analysis
-1. **Enable Detailed Logging**
+2. **Check Field Values**:
    ```python
-   import logging
-   _logger = logging.getLogger(__name__)
-   _logger.setLevel(logging.DEBUG)
+   # In debug console
+   record = env['your.model'].browse(1)
+   print(f"Owner: {record.owner_id}")
+   print(f"Can transfer: {record.can_transfer}")
+   print(f"Access level: {record.access_level}")
    ```
 
-2. **Check Server Logs**
+### Custom Debug Methods
+
+Add debugging methods to your models:
+
+```python
+class DebugMixin(models.AbstractModel):
+    _name = 'debug.mixin'
+    
+    def debug_toolkit_status(self):
+        """Print current toolkit status for debugging"""
+        print(f"=== Toolkit Debug Info for {self._name} ID {self.id} ===")
+        
+        if hasattr(self, 'owner_id'):
+            print(f"Owner: {self.owner_id.name if self.owner_id else 'None'}")
+            print(f"Co-owners: {', '.join(self.co_owner_ids.mapped('name'))}")
+            print(f"Can transfer: {self.can_transfer}")
+        
+        if hasattr(self, 'assigned_user_ids'):
+            print(f"Assigned to: {', '.join(self.assigned_user_ids.mapped('name'))}")
+            print(f"Assignment status: {self.assignment_status}")
+            print(f"Can assign: {self.can_assign}")
+        
+        if hasattr(self, 'access_level'):
+            print(f"Access level: {self.access_level}")
+            print(f"Has access: {self.has_access}")
+        
+        if hasattr(self, 'responsible_user_ids'):
+            print(f"Responsible: {', '.join(self.responsible_user_ids.mapped('name'))}")
+            print(f"Can delegate: {self.can_delegate}")
+```
+
+### Log Analysis Queries
+
+```sql
+-- Most active users (ownership changes)
+SELECT u.name, COUNT(*) as change_count
+FROM tk_ownership_log ol
+JOIN res_users u ON ol.user_id = u.id
+WHERE ol.create_date >= NOW() - INTERVAL '30 days'
+GROUP BY u.name
+ORDER BY change_count DESC;
+
+-- Most transferred models
+SELECT model_name, COUNT(*) as transfer_count
+FROM tk_ownership_log
+WHERE action = 'transfer'
+GROUP BY model_name
+ORDER BY transfer_count DESC;
+
+-- Overdue assignments
+SELECT m.name, al.create_date, al.deadline
+FROM tk_assignment_log al
+JOIN your_model m ON al.res_id = m.id
+WHERE al.deadline < NOW() AND al.status IN ('assigned', 'in_progress');
+```
+
+## 📞 Getting Help
+
+### Community Resources
+
+1. **Documentation**: Check all documentation files in the `docs/` folder
+2. **GitHub Issues**: Report bugs at [GitHub Repository](https://github.com/kaozaza2/comprehensive_toolkit/issues)
+3. **Odoo Community**: Ask questions on Odoo community forums
+
+### Creating Bug Reports
+
+When reporting issues, include:
+
+1. **Environment Information**:
    ```bash
-   tail -f /var/log/odoo/odoo.log | grep comprehensive_toolkit
+   # Odoo version
+   ./odoo-bin --version
+   
+   # Python version
+   python --version
+   
+   # Module version
+   # Check __manifest__.py version field
    ```
 
-### Community Support
-- **GitHub Issues**: Report bugs and feature requests
-- **Odoo Community**: Post questions in forums
-- **Documentation**: Check this guide and API reference
+2. **Error Details**:
+   - Full error message and traceback
+   - Steps to reproduce
+   - Expected vs actual behavior
 
-### Professional Support
-For complex issues or custom implementations:
-- Contact module maintainer
-- Hire Odoo certified developer
-- Consider professional Odoo support
+3. **System Information**:
+   - Operating system
+   - Database version (PostgreSQL)
+   - Browser (if UI issue)
 
-## Prevention Tips
+4. **Logs**:
+   ```bash
+   # Include relevant log entries
+   tail -n 100 /var/log/odoo/odoo.log
+   ```
 
-### Code Quality
-1. **Always test in development first**
-2. **Use version control for customizations**
-3. **Document any modifications**
-4. **Follow Odoo coding standards**
+### Emergency Recovery
 
-### Data Management
-1. **Regular database backups**
-2. **Monitor log table sizes**
-3. **Clean up orphaned records**
-4. **Test migrations thoroughly**
+If the module causes system issues:
 
-### Performance
-1. **Index frequently searched fields**
-2. **Monitor query performance**
-3. **Use appropriate batch sizes**
-4. **Profile slow operations**
+1. **Disable Module Temporarily**:
+   ```sql
+   UPDATE ir_module_module 
+   SET state = 'uninstalled' 
+   WHERE name = 'comprehensive_toolkit';
+   ```
+
+2. **Restore from Backup**:
+   ```bash
+   # Restore database backup
+   dropdb your_database
+   createdb your_database
+   psql your_database < backup_file.sql
+   ```
+
+3. **Safe Mode Start**:
+   ```bash
+   # Start without custom modules
+   ./odoo-bin --addons-path=/odoo/addons -d your_database
+   ```
 
 ---
 
-*For issues not covered in this guide, check the [GitHub repository](https://github.com/kaozaza2) or contact support.*
+**Remember**: Always backup your database before making significant changes or applying fixes!
