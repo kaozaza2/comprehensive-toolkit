@@ -213,7 +213,8 @@
 
                 <group string="Temporary Group" attrs="{'invisible': [('group_type', '!=', 'temporary')]}">
                     <field name="is_temporary"/>
-                    <field name="expiry_date" attrs="{'invisible': [('is_temporary', '=', False)]}"/>
+                    <field name="expiry_date"
+                           attrs="{'invisible': [('is_temporary', '=', False)], 'required': [('is_temporary', '=', True)]}"/>
                 </group>
 
                 <group string="Project/Department Details"

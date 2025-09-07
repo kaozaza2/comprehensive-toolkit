@@ -105,6 +105,7 @@ class AccessibleGroupWizard(models.TransientModel):
             self.is_temporary = True
         else:
             self.is_temporary = False
+            self.expiry_date = False
 
     @api.onchange('use_template')
     def _onchange_use_template(self):
@@ -144,7 +145,10 @@ class AccessibleGroupWizard(models.TransientModel):
             vals['manager_ids'] = [(6, 0, manager_ids)]
 
         # Handle temporary groups
-        if self.is_temporary and self.expiry_date:
+        if self.is_temporary:
+            if not self.expiry_date:
+                raise ValidationError(_("Expiry date must be set for temporary groups"))
+
             vals['expiry_date'] = self.expiry_date
 
         return vals
