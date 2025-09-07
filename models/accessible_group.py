@@ -309,3 +309,17 @@ class AccessibleGroupMixin(models.Model):
             'user_ids': [(6, 0, user_ids)] if user_ids else [],
         }
         return self.create(vals)
+
+    def _archive_expired_groups(self):
+        """Archive groups that have expired"""
+        now = fields.Datetime.now()
+        expired_groups = self.search([
+            ('is_temporary', '=', True),
+            ('expiry_date', '<', now),
+            ('active', '=', True)
+        ])
+
+        expired_groups.write({'active': False})
+
+        for group in expired_groups:
+            group._log_group_change('archive', None, "Automatically archived due to expiry date")

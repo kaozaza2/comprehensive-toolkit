@@ -28,6 +28,7 @@
         'views/dashboard_views.xml',
         'views/wizard_views.xml',
         'views/menu_views.xml',
+        'data/scheduled_actions.xml',
     ],
     'assets': {
         'web.assets_backend': [
